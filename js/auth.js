@@ -3,8 +3,8 @@
 console.log('🔐 auth.js carregado');
 
 // Verificar se Supabase está disponível
-if (typeof supabase === 'undefined') {
-    console.error('❌ ERRO: Supabase não carregou!');
+if (!window.supabase) {
+  console.error('❌ Supabase não carregou!');
 } else {
     console.log('✅ Supabase disponível no auth.js');
 }

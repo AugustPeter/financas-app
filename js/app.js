@@ -2,10 +2,11 @@
 console.log('App.js carregado');
 
 // Verificar se Supabase está disponível
-console.log('Supabase disponível?', typeof window.supabaseClient !== 'undefined');
+console.log('Supabase disponível?', !!window.supabase);
+
 
 // Não tentar usar supabase diretamente, use window.supabaseClient
-if (window.supabaseClient) {
+if (window.supabase) {
     console.log('✅ Supabase client disponível');
 } else {
     console.error('❌ Supabase client não disponível');
@@ -32,13 +33,14 @@ function setupTabs() {
 async function loadInitialData() {
     console.log('📊 Carregando dados...');
     
-    if (!window.supabaseClient) {
+    if (!window.supabase) {
         console.warn('⚠️ Supabase não disponível para carregar dados');
         return;
     }
     
     // Verificar se usuário está logado
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    const { data: { session } } = await window.supabase.auth.getSession();
+
     
     if (session) {
         console.log('👤 Usuário logado:', session.user.email);
