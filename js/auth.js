@@ -1,308 +1,570 @@
-// ============================================
-// CONFIGURAÇÃO SUPABASE - VERSÃO FINAL SEGURA
-// ============================================
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// js/auth.js - Gerenciamento de autenticação com Supabase
 
-// ⚠️ SUAS CREDENCIAIS AQUI ⚠️
-const SUPABASE_URL = 'https://htixncglyuabopewnwpg.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aXhuY2dseXVhYm9wZXdud3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyMjcsImV4cCI6MjA4Mjk0ODIyN30.DuCO2Cv7j9vYBGyNMCWEtagAVrKv9uCTJoNXA1jMCa0';
+console.log('🔐 auth.js carregado');
 
-// ============================================
-// DETECÇÃO AUTOMÁTICA DE AMBIENTE
-// ============================================
-const isLocalDevelopment = 
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1' ||
-  window.location.hostname === '0.0.0.0' ||
-  window.location.hostname === '' ||
-  window.location.port === '5500' ||
-  window.location.port === '3000' ||
-  window.location.port === '8080';
-
-// URL DINÂMICA - FUNCIONA AUTOMATICAMENTE
-let SITE_URL;
-let ENVIRONMENT;
-
-if (isLocalDevelopment) {
-  // DESENVOLVIMENTO LOCAL - PEGA AUTOMATICAMENTE
-  const port = window.location.port || '5500';
-  const hostname = window.location.hostname || '127.0.0.1';
-  SITE_URL = `http://${hostname}:${port}`;
-  ENVIRONMENT = 'development';
-  console.log('🔧 Ambiente: DESENVOLVIMENTO LOCAL');
-  console.log('🌐 Site URL detectada:', SITE_URL);
+// Verificar se Supabase está disponível
+if (typeof supabase === 'undefined') {
+    console.error('❌ ERRO: Supabase não carregou!');
 } else {
-  // PRODUÇÃO - USE QUALQUER URL AQUI (não interfere no local)
-  SITE_URL = 'https://financas-app.vercel.app'; // ← Pode deixar essa mesmo
-  ENVIRONMENT = 'production';
-  console.log('🚀 Ambiente: PRODUÇÃO');
-  console.log('🌐 Site URL:', SITE_URL);
+    console.log('✅ Supabase disponível no auth.js');
 }
 
 // ============================================
-// SISTEMA DE ARMAZENAMENTO SEGURO
+// FUNÇÕES DE AUTENTICAÇÃO
 // ============================================
-class SecureStorage {
-  constructor() {
-    this.currentUserId = null;
-    this.isDemoMode = false;
-  }
-  
-  // Gera chave única para cada usuário
-  getStorageKey(baseKey) {
-    if (this.isDemoMode) {
-      return `demo_${baseKey}`; // Demo tem namespace próprio
-    }
-    if (this.currentUserId) {
-      return `user_${this.currentUserId}_${baseKey}`; // Usuário logado
-    }
-    return `anonymous_${baseKey}`; // Anônimo (não deve acontecer)
-  }
-  
-  // Salva dados de forma isolada
-  setItem(key, value) {
-    const secureKey = this.getStorageKey(key);
-    localStorage.setItem(secureKey, JSON.stringify(value));
-    console.log('💾 Salvo em:', secureKey);
-  }
-  
-  // Recupera dados isolados
-  getItem(key, defaultValue = null) {
-    const secureKey = this.getStorageKey(key);
-    const item = localStorage.getItem(secureKey);
-    return item ? JSON.parse(item) : defaultValue;
-  }
-  
-  // Remove dados do usuário atual
-  clearUserData() {
-    const prefix = this.isDemoMode ? 'demo_' : 
-                   this.currentUserId ? `user_${this.currentUserId}_` : 'anonymous_';
+
+// Verificar se usuário está autenticado
+async function checkAuth() {
+    console.log('🔍 Verificando autenticação...');
     
-    // Remove apenas as chaves deste usuário
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith(prefix)) {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    console.log('🧹 Dados do usuário removidos');
-  }
-  
-  // Migra dados antigos para novo formato
-  migrateOldData() {
-    const oldKeys = ['financeiro', 'financeGoals', 'lastSave'];
-    
-    oldKeys.forEach(oldKey => {
-      const oldValue = localStorage.getItem(oldKey);
-      if (oldValue) {
-        this.setItem(oldKey, JSON.parse(oldValue));
-        localStorage.removeItem(oldKey); // Remove formato antigo
-      }
-    });
-  }
-}
-
-// Instância global do armazenamento seguro
-const secureStorage = new SecureStorage();
-
-// ============================================
-// CLIENTE SUPABASE
-// ============================================
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    siteURL: SITE_URL,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: {
-      getItem: (key) => localStorage.getItem(key),
-      setItem: (key, value) => localStorage.setItem(key, value),
-      removeItem: (key) => localStorage.removeItem(key)
-    },
-    flowType: 'pkce'
-  }
-});
-
-// ============================================
-// FUNÇÕES DE DADOS COM ARMAZENAMENTO SEGURO
-// ============================================
-
-async function getDB() {
-  // 1. Se for modo demo, só usa localStorage
-  if (secureStorage.isDemoMode) {
-    console.log('🎮 Modo demo - usando dados locais');
-    return secureStorage.getItem('financeiro', {});
-  }
-  
-  // 2. Se usuário logado, tenta buscar do Supabase
-  if (currentUser) {
     try {
-      console.log('🌐 Buscando dados do Supabase...');
-      
-      const { data, error } = await supabase
-        .from('finance_data')
-        .select('data')
-        .eq('user_id', currentUser.id)
-        .eq('month', mesAtual)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      // Se encontrou no Supabase
-      if (data && data.data) {
-        console.log('✅ Dados encontrados no Supabase');
+        if (!window.supabase || !window.supabase.auth) {
+            console.error('❌ Supabase auth não disponível');
+            return null;
+        }
         
-        // Salva cópia local
-        secureStorage.setItem('financeiro', data.data);
-        secureStorage.setItem('lastServerSync', new Date().toISOString());
+        const { data: { session }, error } = await window.supabase.auth.getSession();
         
-        return data.data;
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao buscar do Supabase:', error);
+        if (error) {
+            console.error('❌ Erro ao verificar sessão:', error.message);
+            return null;
+        }
+        
+        if (session) {
+            console.log('✅ Usuário autenticado:', session.user.email);
+            return session;
+        } else {
+            console.log('👤 Usuário não autenticado');
+            return null;
+        }
+    } catch (err) {
+        console.error('❌ Erro inesperado no checkAuth:', err);
+        return null;
     }
-  }
-  
-  // 3. Fallback: usa localStorage
-  console.log('📱 Usando dados locais (cache/offline)');
-  return secureStorage.getItem('financeiro', {});
 }
 
-async function saveDB(db) {
-  console.log('💾 Salvando dados...');
-  
-  // 1. Sempre salva localmente primeiro
-  secureStorage.setItem('financeiro', db);
-  secureStorage.setItem('lastSave', new Date().toISOString());
-  
-  // 2. Se for demo, para por aqui
-  if (secureStorage.isDemoMode) {
-    console.log('🎮 Modo demo - salvado apenas localmente');
-    return true;
-  }
-  
-  // 3. Se usuário logado, tenta salvar no Supabase
-  if (currentUser) {
+// Fazer login com email e senha
+async function signIn(email, password) {
+    console.log('🔑 Tentando login com:', email);
+    
     try {
-      const { error } = await supabase
-        .from('finance_data')
-        .upsert({
-          user_id: currentUser.id,
-          month: mesAtual,
-          data: db,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,month'
+        if (!window.supabase || !window.supabase.auth) {
+            throw new Error('Supabase não disponível');
+        }
+        
+        const { data, error } = await window.supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password
         });
-      
-      if (error) throw error;
-      
-      console.log('✅ Dados salvos no Supabase');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ Erro ao salvar no Supabase:', error);
-      
-      // Marca como pendente para sincronizar depois
-      secureStorage.setItem('pendingSync', true);
-      secureStorage.setItem('pendingData', db);
-      
-      return false;
+
+        if (error) {
+            console.error('❌ Erro no login:', error.message);
+            return { 
+                success: false, 
+                error: error.message,
+                code: error.code
+            };
+        }
+
+        console.log('✅ Login realizado:', data.user.email);
+        return { 
+            success: true, 
+            user: data.user,
+            session: data.session
+        };
+    } catch (err) {
+        console.error('❌ Erro inesperado no signIn:', err);
+        return { 
+            success: false, 
+            error: 'Erro inesperado: ' + err.message
+        };
     }
-  }
-  
-  return false;
 }
 
-// ============================================
-// FUNÇÃO DE DEMO (SEM LOGIN)
-// ============================================
-
-async function startDemoMode() {
-  console.log('🚀 Iniciando modo demonstração...');
-  
-  // Configura storage para modo demo
-  secureStorage.isDemoMode = true;
-  secureStorage.currentUserId = null;
-  
-  // Cria dados de demonstração
-  const demoData = {
-    Janeiro: {
-      renda: [
-        ['Salário', '3000'],
-        ['Freelance', '500']
-      ],
-      despesa: [
-        ['Aluguel', '1000', false],
-        ['Mercado', '400', true],
-        ['Transporte', '200', false]
-      ],
-      invest: [
-        ['Tesouro Direto', '500', '5000']
-      ],
-      saldo: 1900,
-      updatedAt: new Date().toISOString()
-    }
-  };
-  
-  const demoGoals = [
-    {
-      goal: 'Viagem para praia',
-      value: 2000,
-      current: 500,
-      createdAt: new Date().toISOString()
-    },
-    {
-      goal: 'Notebook novo',
-      value: 3500,
-      current: 1200,
-      createdAt: new Date().toISOString()
-    }
-  ];
-  
-  // Salva dados de demo
-  secureStorage.setItem('financeiro', demoData);
-  secureStorage.setItem('financeGoals', demoGoals);
-  
-  // Mostra app
-  showToast('Modo demonstração ativado!', 'success');
-  
-  setTimeout(() => {
-    showAppContent();
-  }, 1000);
-}
-
-// ============================================
-// INICIALIZAÇÃO SEGURA
-// ============================================
-
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Inicializando...');
-  console.log('📊 Ambiente:', ENVIRONMENT);
-  console.log('🌐 URL:', SITE_URL);
-  
-  // 1. Migra dados antigos (se houver)
-  secureStorage.migrateOldData();
-  
-  // 2. Tenta recuperar sessão do Supabase
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+// Registrar novo usuário
+async function signUp(email, password) {
+    console.log('📝 Registrando novo usuário:', email);
     
-    if (!error && session) {
-      // Usuário já logado
-      currentUser = session.user;
-      secureStorage.currentUserId = currentUser.id;
-      secureStorage.isDemoMode = false;
-      
-      console.log('✅ Sessão recuperada:', currentUser.email);
-      showAppContent();
-      return;
+    try {
+        if (!window.supabase || !window.supabase.auth) {
+            throw new Error('Supabase não disponível');
+        }
+        
+        // Validações básicas
+        if (!email || !email.includes('@')) {
+            return { success: false, error: 'Email inválido' };
+        }
+        
+        if (!password || password.length < 6) {
+            return { success: false, error: 'Senha precisa ter pelo menos 6 caracteres' };
+        }
+        
+        const { data, error } = await window.supabase.auth.signUp({
+            email: email.trim(),
+            password: password,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        });
+
+        if (error) {
+            console.error('❌ Erro no registro:', error.message);
+            return { 
+                success: false, 
+                error: error.message,
+                code: error.code
+            };
+        }
+
+        console.log('✅ Registro realizado:', data.user?.email);
+        return { 
+            success: true, 
+            user: data.user,
+            requiresEmailConfirmation: data.user?.identities?.length === 0
+        };
+    } catch (err) {
+        console.error('❌ Erro inesperado no signUp:', err);
+        return { 
+            success: false, 
+            error: 'Erro inesperado: ' + err.message
+        };
     }
-  } catch (error) {
-    console.error('❌ Erro ao verificar sessão:', error);
-  }
-  
-  // 3. Se não tem sessão, mostra tela de login
-  showAuthScreen();
+}
+
+// Fazer logout
+async function signOut() {
+    console.log('🚪 Fazendo logout...');
+    
+    try {
+        if (!window.supabase || !window.supabase.auth) {
+            throw new Error('Supabase não disponível');
+        }
+        
+        const { error } = await window.supabase.auth.signOut();
+        
+        if (error) {
+            console.error('❌ Erro no logout:', error.message);
+            return { success: false, error: error.message };
+        }
+        
+        console.log('✅ Logout realizado com sucesso');
+        return { success: true };
+    } catch (err) {
+        console.error('❌ Erro inesperado no signOut:', err);
+        return { success: false, error: 'Erro inesperado' };
+    }
+}
+
+// Verificar conexão com Supabase
+async function checkSupabaseConnection() {
+    console.log('🔗 Testando conexão com Supabase...');
+    
+    try {
+        if (!window.supabase) {
+            return { 
+                connected: false, 
+                error: 'Biblioteca Supabase não carregou' 
+            };
+        }
+        
+        // Teste simples - tentar pegar sessão
+        const { data, error } = await window.supabase.auth.getSession();
+        
+        if (error) {
+            // Pode ser apenas "Não autenticado", o que é normal
+            if (error.message.includes('session')) {
+                console.log('⚠️ Sem sessão ativa (normal)');
+                return { connected: true, hasSession: false };
+            }
+            return { connected: false, error: error.message };
+        }
+        
+        return { 
+            connected: true, 
+            hasSession: !!data.session,
+            session: data.session
+        };
+        
+    } catch (err) {
+        console.error('❌ Erro ao testar conexão:', err);
+        return { connected: false, error: err.message };
+    }
+}
+
+// ============================================
+// FUNÇÕES DE UI PARA AUTENTICAÇÃO
+// ============================================
+
+// Mostrar tela de login
+function showLoginScreen() {
+    console.log('🖥️ Mostrando tela de login...');
+    
+    // Esconder conteúdo do app
+    const appContent = document.getElementById('appContent');
+    if (appContent) {
+        appContent.style.display = 'none';
+    }
+    
+    // Mostrar tela de login (se já existe)
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) {
+        loginScreen.style.display = 'flex';
+        return;
+    }
+    
+    // Se não existe, criar dinamicamente
+    createLoginScreen();
+}
+
+// Mostrar conteúdo do app
+function showAppContent() {
+    console.log('📱 Mostrando conteúdo do app...');
+    
+    // Esconder tela de login
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) {
+        loginScreen.style.display = 'none';
+    }
+    
+    // Mostrar conteúdo do app
+    const appContent = document.getElementById('appContent');
+    if (appContent) {
+        appContent.style.display = 'block';
+    }
+}
+
+// Criar tela de login dinamicamente
+function createLoginScreen() {
+    const loginHTML = `
+        <div id="loginScreen" class="login-container">
+            <div class="login-box">
+                <div class="logo">
+                    <div class="logo-icon">💰</div>
+                    <h1 class="login-title">Finanças App</h1>
+                    <p class="login-subtitle">Controle suas finanças de forma simples</p>
+                </div>
+                
+                <div id="loginForm" class="form-active">
+                    <input type="email" id="email" class="login-input" placeholder="seu@email.com" autocomplete="email">
+                    <input type="password" id="password" class="login-input" placeholder="Sua senha" autocomplete="current-password">
+                    <button onclick="handleLogin()" class="login-button">Entrar</button>
+                    
+                    <div class="login-links">
+                        <p>Não tem conta? <a onclick="showSignupForm()" class="login-link">Cadastre-se</a></p>
+                    </div>
+                </div>
+                
+                <div id="signupForm" class="form-switch">
+                    <input type="email" id="signupEmail" class="login-input" placeholder="seu@email.com" autocomplete="email">
+                    <input type="password" id="signupPassword" class="login-input" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password">
+                    <button onclick="handleSignup()" class="signup-button">Criar Conta</button>
+                    
+                    <div class="login-links">
+                        <p>Já tem conta? <a onclick="showLoginForm()" class="login-link">Faça login</a></p>
+                    </div>
+                </div>
+                
+                <div id="authMessage" class="auth-message"></div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar ao body
+    document.body.insertAdjacentHTML('afterbegin', loginHTML);
+    
+    // Adicionar CSS se não existir
+    if (!document.querySelector('#login-styles')) {
+        const styles = `
+            <style>
+                .login-container {
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #0b1220;
+                    padding: 20px;
+                    font-family: 'Inter', sans-serif;
+                }
+                .login-box {
+                    background: #1e293b;
+                    padding: 40px;
+                    border-radius: 16px;
+                    width: 100%;
+                    max-width: 400px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                }
+                .login-title {
+                    text-align: center;
+                    color: white;
+                    margin-bottom: 10px;
+                    font-size: 24px;
+                    font-weight: 700;
+                }
+                .login-subtitle {
+                    text-align: center;
+                    color: #94a3b8;
+                    margin-bottom: 30px;
+                    font-size: 14px;
+                }
+                .login-input {
+                    width: 100%;
+                    padding: 14px;
+                    margin-bottom: 16px;
+                    border-radius: 10px;
+                    border: 1px solid #334155;
+                    background: #0f172a;
+                    color: white;
+                    font-size: 16px;
+                }
+                .login-button {
+                    width: 100%;
+                    padding: 14px;
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+                .signup-button {
+                    width: 100%;
+                    padding: 14px;
+                    background: #10b981;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+                .login-links {
+                    text-align: center;
+                    margin-top: 20px;
+                    color: #94a3b8;
+                    font-size: 14px;
+                }
+                .login-link {
+                    color: #60a5fa;
+                    cursor: pointer;
+                    text-decoration: none;
+                }
+                .auth-message {
+                    margin-top: 15px;
+                    padding: 12px;
+                    border-radius: 8px;
+                    text-align: center;
+                    font-size: 14px;
+                    display: none;
+                }
+                .auth-success {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #10b981;
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                }
+                .auth-error {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #ef4444;
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                }
+                .logo {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .logo-icon {
+                    font-size: 48px;
+                    margin-bottom: 10px;
+                }
+                .form-switch {
+                    display: none;
+                }
+            </style>
+        `;
+        document.head.insertAdjacentHTML('beforeend', styles);
+    }
+}
+
+// ============================================
+// HANDLERS PARA OS BOTÕES (expostos globalmente)
+// ============================================
+
+// Handler para login
+window.handleLogin = async function() {
+    const email = document.getElementById('email')?.value;
+    const password = document.getElementById('password')?.value;
+    const messageEl = document.getElementById('authMessage');
+    
+    if (!email || !password) {
+        showAuthMessage('Preencha email e senha', 'error');
+        return;
+    }
+    
+    showAuthMessage('Entrando...', 'info');
+    
+    const result = await signIn(email, password);
+    
+    if (result.success) {
+        showAuthMessage('Login realizado! Carregando...', 'success');
+        setTimeout(() => {
+            showAppContent();
+            // Disparar evento de login bem-sucedido
+            window.dispatchEvent(new Event('userLoggedIn'));
+        }, 1000);
+    } else {
+        showAuthMessage('Erro: ' + result.error, 'error');
+    }
+};
+
+// Handler para cadastro
+window.handleSignup = async function() {
+    const email = document.getElementById('signupEmail')?.value;
+    const password = document.getElementById('signupPassword')?.value;
+    
+    if (!email || !password) {
+        showAuthMessage('Preencha email e senha', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showAuthMessage('Senha precisa ter no mínimo 6 caracteres', 'error');
+        return;
+    }
+    
+    showAuthMessage('Criando conta...', 'info');
+    
+    const result = await signUp(email, password);
+    
+    if (result.success) {
+        if (result.requiresEmailConfirmation) {
+            showAuthMessage('Conta criada! Verifique seu email para confirmar.', 'success');
+            setTimeout(showLoginForm, 2000);
+        } else {
+            showAuthMessage('Conta criada com sucesso!', 'success');
+            setTimeout(() => {
+                showAppContent();
+                window.dispatchEvent(new Event('userLoggedIn'));
+            }, 1000);
+        }
+    } else {
+        showAuthMessage('Erro: ' + result.error, 'error');
+    }
+};
+
+// Handler para logout
+window.handleLogout = async function() {
+    const result = await signOut();
+    
+    if (result.success) {
+        showToast('Sessão encerrada', 'info');
+        setTimeout(() => {
+            showLoginScreen();
+            window.dispatchEvent(new Event('userLoggedOut'));
+        }, 500);
+    } else {
+        showToast('Erro ao sair: ' + result.error, 'error');
+    }
+};
+
+// Funções de UI auxiliares
+window.showSignupForm = function() {
+    document.getElementById('loginForm').classList.remove('form-active');
+    document.getElementById('loginForm').classList.add('form-switch');
+    document.getElementById('signupForm').classList.remove('form-switch');
+    document.getElementById('signupForm').classList.add('form-active');
+};
+
+window.showLoginForm = function() {
+    document.getElementById('signupForm').classList.remove('form-active');
+    document.getElementById('signupForm').classList.add('form-switch');
+    document.getElementById('loginForm').classList.remove('form-switch');
+    document.getElementById('loginForm').classList.add('form-active');
+};
+
+function showAuthMessage(message, type) {
+    const messageEl = document.getElementById('authMessage');
+    if (!messageEl) return;
+    
+    messageEl.textContent = message;
+    messageEl.className = 'auth-message';
+    messageEl.classList.add(type === 'error' ? 'auth-error' : 'auth-success');
+    messageEl.style.display = 'block';
+    
+    setTimeout(() => {
+        messageEl.style.display = 'none';
+    }, 5000);
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.style.display = 'block';
+    
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+
+// Inicializar quando DOM carregar
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Iniciando sistema de autenticação...');
+    
+    // Aguardar um pouco para garantir que Supabase carregou
+    setTimeout(async () => {
+        // Testar conexão com Supabase
+        const connection = await checkSupabaseConnection();
+        
+        if (!connection.connected) {
+            console.error('❌ Não conectado ao Supabase');
+            showToast('Modo offline ativado - Dados locais', 'warning');
+            // Mostrar tela de login mesmo offline
+            showLoginScreen();
+            return;
+        }
+        
+        console.log('✅ Conectado ao Supabase');
+        
+        // Verificar autenticação
+        const session = await checkAuth();
+        
+        if (session) {
+            console.log('✅ Usuário já logado, mostrando app');
+            showAppContent();
+            window.dispatchEvent(new Event('userLoggedIn'));
+        } else {
+            console.log('👤 Mostrando tela de login');
+            showLoginScreen();
+        }
+        
+        // Ouvir mudanças de autenticação
+        window.supabase?.auth.onAuthStateChange((event, session) => {
+            console.log('🔄 Mudança de autenticação:', event);
+            
+            if (event === 'SIGNED_IN') {
+                showAppContent();
+                window.dispatchEvent(new Event('userLoggedIn'));
+            } else if (event === 'SIGNED_OUT') {
+                showLoginScreen();
+                window.dispatchEvent(new Event('userLoggedOut'));
+            }
+        });
+        
+    }, 1000);
 });
+
+// Exportar funções para uso em outros arquivos
+window.auth = {
+    checkAuth,
+    signIn,
+    signUp,
+    signOut,
+    checkSupabaseConnection,
+    showLoginScreen,
+    showAppContent
+};

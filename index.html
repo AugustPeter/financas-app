@@ -6,16 +6,13 @@
   <meta name="theme-color" content="#0b1220" />
   <meta name="description" content="Dashboard Financeiro Pessoal - Controle suas finanças" />
   <title>Finanças App</title>
-  <script type="module" src="js/auth.js"></script>
+  
   <!-- Ícones para PWA -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
   
   <!-- Manifest para PWA -->
   <link rel="manifest" href="manifest.json">
-  
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,103 +23,675 @@
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tabs.css">
   <link rel="stylesheet" href="styles/responsive.css">
+  
+  <!-- CSS para login -->
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b1220;
+      padding: 20px;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .login-box {
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-title {
+      text-align: center;
+      color: white;
+      margin-bottom: 10px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .login-subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .login-input {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: white;
+      font-size: 16px;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    .login-button {
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.2s;
+    }
+    
+    .login-button:hover {
+      background: #2563eb;
+    }
+    
+    .signup-button {
+      width: 100%;
+      padding: 14px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.2s;
+    }
+    
+    .signup-button:hover {
+      background: #059669;
+    }
+    
+    .login-links {
+      text-align: center;
+      margin-top: 20px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    
+    .login-link {
+      color: #60a5fa;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .login-link:hover {
+      text-decoration: underline;
+    }
+    
+    .auth-message {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .auth-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .auth-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    
+    .form-switch {
+      display: none;
+    }
+    
+    .app-content {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-
-<!-- Offline Indicator -->
-<div class="offline-indicator" id="offlineIndicator">
-  ⚠️ Você está offline - As alterações serão salvas localmente
-</div>
-
-<!-- App Header -->
-<header class="app-header">
-  <div class="header-content">
-    <h1 id="appTitle">Finanças App</h1>
-    <div class="header-actions">
-      <div class="filters" id="headerFilters">
-        <!-- Filtros serão injetados por JS baseado na tab ativa -->
+  <!-- Conteúdo do Login (visível inicialmente) -->
+  <div id="loginScreen" class="login-container">
+    <div class="login-box">
+      <div class="logo">
+        <div class="logo-icon">💰</div>
+        <h1 class="login-title">Finanças App</h1>
+        <p class="login-subtitle">Controle suas finanças de forma simples</p>
       </div>
-      <button class="install-btn" id="installButton">Instalar App</button>
+      
+      <!-- Formulário de Login -->
+      <div id="loginForm" class="form-active">
+        <input type="email" id="email" class="login-input" placeholder="seu@email.com" autocomplete="email">
+        <input type="password" id="password" class="login-input" placeholder="Sua senha" autocomplete="current-password">
+        <button onclick="handleLogin()" class="login-button">Entrar</button>
+        
+        <div class="login-links">
+          <p>Não tem conta? <a onclick="showSignupForm()" class="login-link">Cadastre-se</a></p>
+        </div>
+      </div>
+      
+      <!-- Formulário de Cadastro -->
+      <div id="signupForm" class="form-switch">
+        <input type="email" id="signupEmail" class="login-input" placeholder="seu@email.com" autocomplete="email">
+        <input type="password" id="signupPassword" class="login-input" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password">
+        <button onclick="handleSignup()" class="signup-button">Criar Conta</button>
+        
+        <div class="login-links">
+          <p>Já tem conta? <a onclick="showLoginForm()" class="login-link">Faça login</a></p>
+        </div>
+      </div>
+      
+      <!-- Mensagens de autenticação -->
+      <div id="authMessage" class="auth-message"></div>
     </div>
   </div>
-</header>
 
-<!-- Tabs Navigation (Desktop) -->
-<div class="tabs-container">
-  <div class="tabs">
-    <button class="tab active" id="tabDashboard">
-      📊 Dashboard
-    </button>
-    <button class="tab" id="tabTransactions">
-      💸 Transações
-    </button>
-    <button class="tab" id="tabInvestments">
-      📈 Investimentos
-    </button>
-    <button class="tab" id="tabReports">
-      📋 Relatórios
-    </button>
+  <!-- Conteúdo Principal do App (oculto inicialmente) -->
+  <div id="appContent" class="app-content">
+    <!-- Offline Indicator -->
+    <div class="offline-indicator" id="offlineIndicator">
+      ⚠️ Você está offline - As alterações serão salvas localmente
+    </div>
+
+    <header class="app-header">
+      <div class="header-content">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--green) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+          ">
+            💰
+          </div>
+          <h1 id="appTitle">Finanças App</h1>
+          <button onclick="handleLogout()" style="
+            margin-left: auto;
+            padding: 6px 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+          ">Sair</button>
+        </div>
+        <div class="header-actions">
+          <div class="filters" id="headerFilters">
+            <!-- Filtros serão injetados por JS baseado na tab ativa -->
+          </div>
+          <button class="install-btn" id="installButton">📲 Instalar App</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs Navigation (Desktop) -->
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab active" id="tabDashboard">
+          📊 Dashboard
+        </button>
+        <button class="tab" id="tabTransactions">
+          💸 Transações
+        </button>
+        <button class="tab" id="tabInvestments">
+          📈 Investimentos
+        </button>
+        <button class="tab" id="tabReports">
+          📋 Relatórios
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+      
+      <!-- Tab 1: Dashboard -->
+      <div class="tab-content active" id="dashboardContent">
+        <div style="padding: 20px; text-align: center;">
+          <h2>📊 Dashboard</h2>
+          <p>Carregando dados financeiros...</p>
+          <div id="loadingDashboard">⏳ Aguarde...</div>
+          <canvas id="dashboardChart" style="max-width: 100%; height: 300px; margin-top: 20px;"></canvas>
+        </div>
+      </div>
+
+      <!-- Tab 2: Transações -->
+      <div class="tab-content" id="transactionsContent">
+        <div style="padding: 20px;">
+          <h2>💸 Transações</h2>
+          <div style="margin: 20px 0;">
+            <button onclick="showAddTransaction()" style="
+              padding: 10px 20px;
+              background: #3b82f6;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+            ">+ Nova Transação</button>
+          </div>
+          <div id="transactionsList">
+            <p>Carregando transações...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Investimentos -->
+      <div class="tab-content" id="investmentsContent">
+        <div style="padding: 20px; text-align: center;">
+          <h2>📈 Investimentos</h2>
+          <p>Em breve...</p>
+        </div>
+      </div>
+
+      <!-- Tab 4: Relatórios -->
+      <div class="tab-content" id="reportsContent">
+        <div style="padding: 20px; text-align: center;">
+          <h2>📋 Relatórios</h2>
+          <p>Em breve...</p>
+        </div>
+      </div>
+
+    </div> <!-- Fim Container -->
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" id="navDashboard">
+        <i>📊</i>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" id="navTransactions">
+        <i>💸</i>
+        <span>Transações</span>
+      </button>
+      <button class="nav-item" id="navInvestments">
+        <i>📈</i>
+        <span>Investir</span>
+      </button>
+      <button class="nav-item" id="navReports">
+        <i>📋</i>
+        <span>Relatórios</span>
+      </button>
+    </nav>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
   </div>
-</div>
 
-<!-- Main Content -->
-<div class="container">
-  
-  <!-- Tab 1: Dashboard -->
-  <div class="tab-content active" id="dashboardContent">
-    <!-- Conteúdo será carregado dinamicamente -->
-  </div>
+  <!-- SCRIPTS -->
+  <!-- 1. Bibliotecas Externas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Tab 2: Transações -->
-  <div class="tab-content" id="transactionsContent">
-    <!-- Conteúdo será carregado dinamicamente -->
-  </div>
+  <!-- 2. Configuração do Supabase EM LINHA (SUBSTITUA COM SEUS DADOS) -->
+  <script>
+    // ============================================
+    // CONFIGURAÇÃO DO SUPABASE
+    // ============================================
+    // SUBSTITUA ESTES VALORES COM OS DO SEU PROJETO SUPABASE!
+    const SUPABASE_CONFIG = {
+      url: 'https://SEU_ID.supabase.co',  // ← SUA URL AQUI
+      key: 'SUA_CHAVE_ANON_PUBLIC_AQUI'   // ← SUA CHAVE AQUI
+    };
+    
+    console.log('🔧 Iniciando configuração do Supabase...');
+    
+    // Inicializar Supabase
+    let supabaseClient = null;
+    
+    if (typeof supabase !== 'undefined') {
+      try {
+        supabaseClient = supabase.createClient(
+          SUPABASE_CONFIG.url, 
+          SUPABASE_CONFIG.key,
+          {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: false
+            }
+          }
+        );
+        
+        window.supabase = supabaseClient;
+        console.log('✅ Supabase configurado com sucesso!');
+        
+      } catch (error) {
+        console.error('❌ Erro ao configurar Supabase:', error);
+      }
+    } else {
+      console.error('❌ Biblioteca Supabase não carregou!');
+    }
+    
+    // Função para mostrar mensagens
+    function showMessage(message, type = 'info') {
+      const authMessage = document.getElementById('authMessage');
+      if (authMessage) {
+        authMessage.textContent = message;
+        authMessage.className = 'auth-message';
+        authMessage.classList.add(type === 'error' ? 'auth-error' : 'auth-success');
+        authMessage.style.display = 'block';
+        
+        setTimeout(() => {
+          authMessage.style.display = 'none';
+        }, 5000);
+      }
+      
+      // Também mostrar no toast se disponível
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = message;
+        toast.className = `toast ${type}`;
+        toast.style.display = 'block';
+        setTimeout(() => {
+          toast.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    // Funções de formulário
+    function showSignupForm() {
+      document.getElementById('loginForm').classList.remove('form-active');
+      document.getElementById('loginForm').classList.add('form-switch');
+      document.getElementById('signupForm').classList.remove('form-switch');
+      document.getElementById('signupForm').classList.add('form-active');
+    }
+    
+    function showLoginForm() {
+      document.getElementById('signupForm').classList.remove('form-active');
+      document.getElementById('signupForm').classList.add('form-switch');
+      document.getElementById('loginForm').classList.remove('form-switch');
+      document.getElementById('loginForm').classList.add('form-active');
+    }
+    
+    // Login
+    async function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showMessage('Preencha email e senha', 'error');
+        return;
+      }
+      
+      if (!supabaseClient) {
+        showMessage('Erro de conexão. Recarregue a página.', 'error');
+        return;
+      }
+      
+      showMessage('Entrando...', 'info');
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) {
+          showMessage('Erro: ' + error.message, 'error');
+        } else {
+          showMessage('Login realizado!', 'success');
+          setTimeout(() => {
+            checkAuth();
+          }, 1000);
+        }
+      } catch (err) {
+        showMessage('Erro inesperado: ' + err.message, 'error');
+      }
+    }
+    
+    // Cadastro
+    async function handleSignup() {
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      
+      if (!email || !password) {
+        showMessage('Preencha email e senha', 'error');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showMessage('Senha precisa ter no mínimo 6 caracteres', 'error');
+        return;
+      }
+      
+      if (!supabaseClient) {
+        showMessage('Erro de conexão. Recarregue a página.', 'error');
+        return;
+      }
+      
+      showMessage('Criando conta...', 'info');
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signUp({
+          email,
+          password
+        });
+        
+        if (error) {
+          showMessage('Erro: ' + error.message, 'error');
+        } else {
+          showMessage('Conta criada! Verifique seu email para confirmar.', 'success');
+          setTimeout(() => {
+            showLoginForm();
+          }, 2000);
+        }
+      } catch (err) {
+        showMessage('Erro inesperado: ' + err.message, 'error');
+      }
+    }
+    
+    // Logout
+    async function handleLogout() {
+      if (!supabaseClient) return;
+      
+      const { error } = await supabaseClient.auth.signOut();
+      
+      if (error) {
+        showMessage('Erro ao sair: ' + error.message, 'error');
+      } else {
+        showMessage('Sessão encerrada', 'info');
+        setTimeout(() => {
+          checkAuth();
+        }, 1000);
+      }
+    }
+    
+    // Verificar autenticação
+    async function checkAuth() {
+      console.log('🔐 Verificando autenticação...');
+      
+      if (!supabaseClient) {
+        console.error('❌ Supabase não disponível');
+        showLoginScreen();
+        return;
+      }
+      
+      try {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Erro ao verificar sessão:', error);
+          showLoginScreen();
+          return;
+        }
+        
+        if (session) {
+          console.log('✅ Usuário autenticado:', session.user.email);
+          showAppContent();
+          
+          // Carregar dados do usuário
+          loadUserData(session.user.id);
+        } else {
+          console.log('👤 Usuário não autenticado');
+          showLoginScreen();
+        }
+      } catch (err) {
+        console.error('❌ Erro inesperado:', err);
+        showLoginScreen();
+      }
+    }
+    
+    // Mostrar tela de login
+    function showLoginScreen() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+      
+      // Limpar formulários
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('signupEmail').value = '';
+      document.getElementById('signupPassword').value = '';
+    }
+    
+    // Mostrar conteúdo do app
+    function showAppContent() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appContent').style.display = 'block';
+    }
+    
+    // Carregar dados do usuário
+    async function loadUserData(userId) {
+      console.log('📊 Carregando dados do usuário:', userId);
+      
+      // Aqui você pode carregar transações, categorias, etc.
+      // Exemplo básico:
+      try {
+        const { data: transactions, error } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false })
+          .limit(10);
+        
+        if (error) {
+          console.error('❌ Erro ao carregar transações:', error);
+        } else {
+          console.log('✅ Transações carregadas:', transactions?.length || 0);
+          updateDashboard(transactions || []);
+        }
+      } catch (err) {
+        console.error('❌ Erro:', err);
+      }
+    }
+    
+    // Atualizar dashboard
+    function updateDashboard(transactions) {
+      const loadingEl = document.getElementById('loadingDashboard');
+      if (loadingEl) {
+        loadingEl.innerHTML = `
+          <h3>Resumo Financeiro</h3>
+          <p>Total de transações: ${transactions.length}</p>
+          <p>Última atualização: ${new Date().toLocaleTimeString()}</p>
+        `;
+      }
+    }
+    
+    // Mostrar formulário de nova transação
+    function showAddTransaction() {
+      alert('Funcionalidade de adicionar transação em desenvolvimento!');
+      // Implemente aqui o modal/formulário para nova transação
+    }
+    
+    // Inicializar quando a página carregar
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🚀 Página carregada');
+      
+      // Verificar autenticação
+      setTimeout(() => {
+        checkAuth();
+      }, 500);
+      
+      // Configurar navegação entre tabs
+      setupTabNavigation();
+    });
+    
+    // Configurar navegação entre tabs
+    function setupTabNavigation() {
+      // Desktop tabs
+      const desktopTabs = document.querySelectorAll('.tabs .tab');
+      const mobileTabs = document.querySelectorAll('.bottom-nav .nav-item');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      function switchTab(tabId) {
+        // Esconder todos os conteúdos
+        tabContents.forEach(content => {
+          content.classList.remove('active');
+        });
+        
+        // Mostrar conteúdo da tab selecionada
+        const activeContent = document.getElementById(tabId + 'Content');
+        if (activeContent) {
+          activeContent.classList.add('active');
+        }
+        
+        // Atualizar tabs ativas
+        desktopTabs.forEach(tab => {
+          tab.classList.remove('active');
+          if (tab.id === 'tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1)) {
+            tab.classList.add('active');
+          }
+        });
+        
+        mobileTabs.forEach(tab => {
+          tab.classList.remove('active');
+          if (tab.id === 'nav' + tabId.charAt(0).toUpperCase() + tabId.slice(1)) {
+            tab.classList.add('active');
+          }
+        });
+      }
+      
+      // Adicionar eventos
+      desktopTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.id.replace('tab', '').toLowerCase();
+          switchTab(tabId);
+        });
+      });
+      
+      mobileTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.id.replace('nav', '').toLowerCase();
+          switchTab(tabId);
+        });
+      });
+    }
+  </script>
 
-  <!-- Tab 3: Investimentos -->
-  <div class="tab-content" id="investmentsContent">
-    <!-- Conteúdo será carregado dinamicamente -->
-  </div>
-
-  <!-- Tab 4: Relatórios -->
-  <div class="tab-content" id="reportsContent">
-    <!-- Conteúdo será carregado dinamicamente -->
-  </div>
-
-</div> <!-- Fim Container -->
-
-<!-- Bottom Navigation (Mobile) -->
-<nav class="bottom-nav">
-  <button class="nav-item active" id="navDashboard">
-    <i>📊</i>
-    <span>Dashboard</span>
-  </button>
-  <button class="nav-item" id="navTransactions">
-    <i>💸</i>
-    <span>Transações</span>
-  </button>
-  <button class="nav-item" id="navInvestments">
-    <i>📈</i>
-    <span>Investir</span>
-  </button>
-  <button class="nav-item" id="navReports">
-    <i>📋</i>
-    <span>Relatórios</span>
-  </button>
-</nav>
-
-<!-- Toast Notification -->
-<div class="toast" id="toast"></div>
-
-<!-- JavaScript Files -->
-
-<script src="js/data.js"></script>
-<script src="js/tabs.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/transactions.js"></script>
-<script src="js/investments.js"></script>
-<script src="js/reports.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/app.js"></script>
-
+  <!-- 3. Seus scripts locais (carregar depois) -->
+  <script src="js/auth.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/tabs.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
+  <script src="js/transactions.js" defer></script>
+  <script src="js/investments.js" defer></script>
+  <script src="js/reports.js" defer></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/app.js" defer></script>
 </body>
 </html>
