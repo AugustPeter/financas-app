@@ -8,7 +8,19 @@ if (typeof supabase === 'undefined') {
 } else {
     console.log('✅ Supabase disponível no auth.js');
 }
-
+function showAuthScreen() {
+    console.log('🖥️ Mostrando tela de autenticação...');
+    
+    // Se já existe tela de login, mostra
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) {
+        loginScreen.style.display = 'flex';
+        return;
+    }
+    
+    // Se não existe, cria
+    createLoginScreen();
+}
 // ============================================
 // FUNÇÕES DE AUTENTICAÇÃO
 // ============================================

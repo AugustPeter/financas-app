@@ -1,16 +1,21 @@
 {
   "name": "Finanças App",
   "short_name": "Finanças",
-  "description": "Dashboard Financeiro Pessoal - Controle suas finanças",
+  "description": "Controle suas finanças pessoais",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1220",
   "theme_color": "#0b1220",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%236366f1%22>💰</text></svg>",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }
