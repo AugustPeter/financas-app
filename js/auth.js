@@ -1,7 +1,21 @@
 // js/auth.js - Gerenciamento de autenticação com Supabase
 
 console.log('🔐 auth.js carregado');
+function showAppContent() {
+    console.log("📱 Mostrando conteúdo do app...");
+    
+    // Esconder tela de login
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) {
+        loginScreen.style.display = 'none';
+    }
 
+    // Mostrar o conteúdo do app
+    const appContent = document.getElementById('appContent');
+    if (appContent) {
+        appContent.style.display = 'block';
+    }
+}
 // Verificar se Supabase está disponível
 if (!window.supabase) {
   console.error('❌ Supabase não carregou!');
@@ -28,42 +42,33 @@ function showAuthScreen() {
 // Verificar se usuário está autenticado
 async function checkAuth() {
     console.log('🔍 Verificando autenticação...');
-    
+
     try {
-        if (!window.supabase || !window.supabase.auth) {
-            console.error('❌ Supabase auth não disponível');
-            return null;
-        }
-        
         const { data: { session }, error } = await window.supabase.auth.getSession();
-        
+
         if (error) {
             console.error('❌ Erro ao verificar sessão:', error.message);
             return null;
         }
-        
+
         if (session) {
             console.log('✅ Usuário autenticado:', session.user.email);
-            return session;
+            return session;  // Sessão válida
         } else {
             console.log('👤 Usuário não autenticado');
-            return null;
+            return null;  // Usuário não autenticado
         }
     } catch (err) {
         console.error('❌ Erro inesperado no checkAuth:', err);
-        return null;
+        return null;  // Retorna null se ocorrer um erro inesperado
     }
 }
 
 // Fazer login com email e senha
 async function signIn(email, password) {
     console.log('🔑 Tentando login com:', email);
-    
+
     try {
-        if (!window.supabase || !window.supabase.auth) {
-            throw new Error('Supabase não disponível');
-        }
-        
         const { data, error } = await window.supabase.auth.signInWithPassword({
             email: email.trim(),
             password: password
@@ -73,12 +78,12 @@ async function signIn(email, password) {
             console.error('❌ Erro no login:', error.message);
             return { 
                 success: false, 
-                error: error.message,
-                code: error.code
+                error: error.message 
             };
         }
 
         console.log('✅ Login realizado:', data.user.email);
+        showAppContent();  // Chama a função para mostrar o conteúdo do app
         return { 
             success: true, 
             user: data.user,
@@ -229,21 +234,7 @@ function showLoginScreen() {
 }
 
 // Mostrar conteúdo do app
-function showAppContent() {
-    console.log('📱 Mostrando conteúdo do app...');
-    
-    // Esconder tela de login
-    const loginScreen = document.getElementById('loginScreen');
-    if (loginScreen) {
-        loginScreen.style.display = 'none';
-    }
-    
-    // Mostrar conteúdo do app
-    const appContent = document.getElementById('appContent');
-    if (appContent) {
-        appContent.style.display = 'block';
-    }
-}
+
 
 // Criar tela de login dinamicamente
 function createLoginScreen() {
@@ -464,10 +455,11 @@ window.handleSignup = async function() {
 
 // Handler para logout
 window.handleLogout = async function() {
-    const result = await signOut();
+    console.log("Tentando fazer logout...");
+    const result = await signOut();  // Certifique-se de que 'signOut' está definido corretamente
     
     if (result.success) {
-        showToast('Sessão encerrada', 'info');
+        showToast('Logout realizado com sucesso', 'success');
         setTimeout(() => {
             showLoginScreen();
             window.dispatchEvent(new Event('userLoggedOut'));
@@ -569,14 +561,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         
     }, 1000);
 });
+// Função para mostrar o formulário de login
 
 // Exportar funções para uso em outros arquivos
 window.auth = {
-    checkAuth,
-    signIn,
-    signUp,
-    signOut,
-    checkSupabaseConnection,
-    showLoginScreen,
-    showAppContent
+    showLoginForm,
+    showSignupForm
 };

@@ -4,112 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b1220" />
-  <meta name="description" content="Dashboard Financeiro Pessoal" />
   <title>Finanças App</title>
-
-  <!-- Ícone -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+  
   <!-- CSS -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tabs.css">
   <link rel="stylesheet" href="styles/responsive.css">
+  
+  <!-- Fontes -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-
 <body>
+  <!-- APENAS UM CONTAINER VAZIO - TUDO SERÁ CRIADO POR JS -->
+  <div id="app"></div>
 
-  <!-- LOGIN -->
-  <div id="loginScreen" class="login-container">
-    <div class="login-box">
-      <div class="logo">
-        <div class="logo-icon">💰</div>
-        <h1 class="login-title">Finanças App</h1>
-        <p class="login-subtitle">Controle suas finanças</p>
-      </div>
-
-      <div id="loginForm" class="form-active">
-        <input id="email" type="email" class="login-input" placeholder="seu@email.com">
-        <input id="password" type="password" class="login-input" placeholder="Senha">
-        <button onclick="handleLogin()" class="login-button">Entrar</button>
-        <div class="login-links">
-          <p>Não tem conta? <a onclick="showSignupForm()">Cadastre-se</a></p>
-        </div>
-      </div>
-
-      <div id="signupForm" class="form-switch">
-        <input id="signupEmail" type="email" class="login-input" placeholder="seu@email.com">
-        <input id="signupPassword" type="password" class="login-input" placeholder="Senha (mín. 6)">
-        <button onclick="handleSignup()" class="signup-button">Criar Conta</button>
-        <div class="login-links">
-          <p>Já tem conta? <a onclick="showLoginForm()">Login</a></p>
-        </div>
-      </div>
-
-      <div id="authMessage" class="auth-message"></div>
-    </div>
-  </div>
-
-  <!-- APP -->
-  <div id="appContent" class="app-content">
-
-    <header class="app-header">
-      <h1>Finanças App</h1>
-      <button onclick="handleLogout()" class="logout-btn">Sair</button>
-    </header>
-
-    <div class="tabs">
-      <button class="tab active" id="tabDashboard">Dashboard</button>
-      <button class="tab" id="tabTransactions">Transações</button>
-      <button class="tab" id="tabReports">Relatórios</button>
-    </div>
-
-    <main class="container">
-      <section id="dashboardContent" class="tab-content active">
-        <h2>Dashboard</h2>
-        <canvas id="dashboardChart"></canvas>
-      </section>
-
-      <section id="transactionsContent" class="tab-content">
-        <h2>Transações</h2>
-        <button onclick="showAddTransaction()">+ Nova</button>
-        <div id="transactionsList"></div>
-      </section>
-
-      <section id="reportsContent" class="tab-content">
-        <h2>Relatórios</h2>
-        <p>Em desenvolvimento</p>
-      </section>
-    </main>
-
-    <div id="toast" class="toast"></div>
-  </div>
-
-  <!-- ===================== -->
-  <!-- SCRIPTS (ORDEM CERTA) -->
-  <!-- ===================== -->
-
-  <!-- Libs -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Supabase -->
-  <script src="js/supabase-config.js"></script>
-
-  <!-- Core -->
-  <script src="js/auth.js" defer></script>
-  <script src="js/app.js" defer></script>
-
-  <!-- Funcionalidades -->
-  <script src="js/tabs.js" defer></script>
-  <script src="js/data.js" defer></script>
-  <script src="js/dashboard.js" defer></script>
-  <script src="js/transactions.js" defer></script>
-  <script src="js/reports.js" defer></script>
-
+  
+  <!-- Configuração Supabase INLINE -->
+  <script>
+    // SUAS CREDENCIAIS AQUI ⬇️
+    const SUPABASE_URL = 'https://htixncglyuabopewnwpg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aXhuY2dseXVhYm9wZXdud3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyMjcsImV4cCI6MjA4Mjk0ODIyN30.DuCO2Cv7j9vYBGyNMCWEtagAVrKv9uCTJoNXA1jMCa0';
+    
+    if (typeof supabase !== 'undefined') {
+      window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('✅ Supabase configurado');
+    }
+  </script>
+  
+  <!-- Seus scripts -->
+ <script src="js/auth.js" defer></script>
+<script src="js/app.js" defer></script>
+<script src="js/supabase-data.js" defer></script>  <!-- NOVO! -->
+<script src="js/charts.js" defer></script>
+<script src="js/dashboard.js" defer></script>
+  <!-- Outros scripts se necessário -->
 </body>
 </html>
