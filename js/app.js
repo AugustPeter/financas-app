@@ -62,14 +62,7 @@ function createDashboardStructure() {
     </header>
     
     <!-- Navegação por Tabs -->
-    <div class="tabs-container">
-      <div class="tabs">
-        <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
-        <button class="tab" data-tab="transactions">💸 Transações</button>
-        <button class="tab" data-tab="investments">📈 Investimentos</button>
-        <button class="tab" data-tab="reports">📋 Relatórios</button>
-      </div>
-    </div>
+    
     
     <!-- Container principal -->
     <div class="container">
