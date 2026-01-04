@@ -267,6 +267,537 @@ function createAlternativeChart(renda, despesa, investimento, saldo) {
     }
   });
 }
+
+// HUD PERMANENTE SEM DUPLICAÇÃO - Adicionar no final do dashboard.js
+let hudCreated = false; // Variável global para controlar
+
+function createPermanentMonthHUD() {
+    console.log('🎯 Tentando criar HUD permanente...');
+    
+    // Evitar duplicação - verificar se já existe
+    if (hudCreated || document.getElementById('monthHUD')) {
+        console.log('⏭️ HUD já existe, pulando...');
+        return;
+    }
+    
+    // Aguardar o DOM carregar completamente
+    setTimeout(() => {
+        // Verificar novamente (segurança dupla)
+        if (document.getElementById('monthHUD')) {
+            console.log('✅ HUD já existe (verificação dupla)');
+            return;
+        }
+        
+        // Procurar por um local bom para colocar o HUD
+        const dashboardContent = document.getElementById('dashboardContent');
+        
+        if (!dashboardContent) {
+            console.log('❌ dashboardContent não encontrado, tentando novamente em 500ms');
+            setTimeout(createPermanentMonthHUD, 500);
+            return;
+        }
+        
+        console.log('✅ dashboardContent encontrado, criando HUD...');
+        
+        // LOCAL ESPECÍFICO: Após os summary-cards
+        const summaryCards = dashboardContent.querySelector('.summary-cards');
+        
+        // Criar HUD HTML
+        const hudHTML = `
+            <div id="monthHUD" style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                margin: 20px auto;
+                padding: 12px 20px;
+                background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                border-radius: 12px;
+                border: 1px solid #334155;
+                max-width: 500px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                z-index: 100;
+            ">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #e2e8f0; font-weight: 500; font-size: 14px;">📅</span>
+                    <span style="color: #cbd5e1; font-size: 14px;">Período:</span>
+                </div>
+                
+                <div style="display: flex; gap: 8px;">
+                    <select id="hudMonth" style="
+                        padding: 6px 12px;
+                        background: #0f172a;
+                        color: white;
+                        border: 1px solid #475569;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        min-width: 100px;
+                    ">
+                        <option value="0">Janeiro</option>
+                        <option value="1">Fevereiro</option>
+                        <option value="2">Março</option>
+                        <option value="3">Abril</option>
+                        <option value="4">Maio</option>
+                        <option value="5">Junho</option>
+                        <option value="6">Julho</option>
+                        <option value="7">Agosto</option>
+                        <option value="8">Setembro</option>
+                        <option value="9">Outubro</option>
+                        <option value="10">Novembro</option>
+                        <option value="11">Dezembro</option>
+                    </select>
+                    
+                    <select id="hudYear" style="
+                        padding: 6px 12px;
+                        background: #0f172a;
+                        color: white;
+                        border: 1px solid #475569;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        min-width: 90px;
+                    ">
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button id="hudLoadBtn" style="
+                        padding: 6px 14px;
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 13px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s;
+                    ">
+                        🔄 Carregar
+                    </button>
+                    
+                    <button id="hudSaveBtn" style="
+                        padding: 6px 14px;
+                        background: #10b981;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 13px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s;
+                    ">
+                        💾 Salvar
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Inserir o HUD
+        if (summaryCards) {
+            // Inserir APÓS os summary cards
+            summaryCards.insertAdjacentHTML('afterend', hudHTML);
+            console.log('✅ HUD inserido após summary cards');
+        } else {
+            // Inserir no início do dashboardContent
+            dashboardContent.insertAdjacentHTML('afterbegin', hudHTML);
+            console.log('✅ HUD inserido no início do dashboard');
+        }
+        
+        // Marcar como criado
+        hudCreated = true;
+        console.log('✅ HUD permanente criado com sucesso');
+        
+        // Configurar funcionalidades
+        setupHUDfunctionality();
+        
+    }, 1000); // Aguardar 1 segundo para garantir que tudo carregou
+}
+
+// Configurar funcionalidade do HUD (com proteção contra duplicação)
+let hudSetupDone = false;
+
+function setupHUDfunctionality() {
+    // Evitar configuração duplicada
+    if (hudSetupDone) {
+        console.log('⏭️ HUD já configurado, pulando...');
+        return;
+    }
+    
+    const now = new Date();
+    const monthSelect = document.getElementById('hudMonth');
+    const yearSelect = document.getElementById('hudYear');
+    
+    if (!monthSelect || !yearSelect) {
+        console.log('❌ Elementos do HUD não encontrados, tentando novamente...');
+        setTimeout(setupHUDfunctionality, 500);
+        return;
+    }
+    
+    // Configurar valores atuais
+    monthSelect.value = now.getMonth();
+    yearSelect.value = now.getFullYear();
+    
+    console.log('🔧 Configurando botões do HUD...');
+    
+    // Botão CARREGAR
+// MODIFIQUE ESTA PARTE DO SEU dashboard.js (na função setupHUDfunctionality)
+
+const loadBtn = document.getElementById('hudLoadBtn');
+if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
+    loadBtn.setAttribute('data-hud-configured', 'true');
+    loadBtn.onclick = async function() {
+        console.log('🔄 Botão Carregar clicado');
+        
+        const monthIndex = document.getElementById('hudMonth').value;
+        const year = document.getElementById('hudYear').value;
+        const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+        
+        const selectedMonth = `${months[monthIndex]}-${year}`;
+        
+        console.log(`📥 Carregando dados de ${selectedMonth}...`);
+        
+        // Animação
+        const originalText = this.innerHTML;
+        this.innerHTML = '⏳';
+        this.disabled = true;
+        
+        try {
+            // Primeiro tenta do localStorage (sempre disponível)
+            const key = `financas_dashboard_${selectedMonth}`;
+            const dataStr = localStorage.getItem(key);
+            
+            if (dataStr) {
+                const data = JSON.parse(dataStr);
+                applyDashboardData(data);
+                this.innerHTML = '✅';
+                this.style.background = '#059669';
+                showToast(`Dados de ${selectedMonth} carregados!`, 'success');
+            } else {
+                // Tentar usar as funções disponíveis do supabase-data.js
+                let result;
+                
+                // Opção 1: Função específica para mês
+                if (typeof carregarMes === 'function') {
+                    // Converter mês index (0-11) para número (1-12)
+                    const mesNumero = parseInt(monthIndex) + 1;
+                    result = await carregarMes(parseInt(year), mesNumero);
+                }
+                // Opção 2: Função principal
+                else if (typeof loadDashboardFromSupabase === 'function') {
+                    // Precisamos configurar o período no supabase-data.js primeiro
+                    if (typeof window.supabaseData !== 'undefined' && window.supabaseData.setPeriodo) {
+                        const mesNumero = parseInt(monthIndex) + 1;
+                        window.supabaseData.setPeriodo(parseInt(year), mesNumero);
+                    }
+                    result = await loadDashboardFromSupabase();
+                }
+                // Opção 3: Função de carregar mês específico
+                else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
+                    result = await window.supabaseData.load();
+                }
+                else {
+                    throw new Error('Função de carregamento não disponível');
+                }
+                
+                if (result && result.success) {
+                    if (result.empty) {
+                        // MÊS SEM DADOS - LIMPA A TELA
+                        limparDashboard();
+                        this.innerHTML = '📭';
+                        this.style.background = '#f59e0b';
+                        showToast(`📭 ${selectedMonth} - Mês sem dados (tela limpa)`, 'info');
+                    } else {
+                        this.innerHTML = '✅';
+                        this.style.background = '#059669';
+                        showToast(`Dados de ${selectedMonth} carregados!`, 'success');
+                    }
+                } else {
+                    // SE NÃO TEVE SUCESSO, LIMPA A TELA
+                    limparDashboard();
+                    throw new Error(result ? result.error : 'Nenhum dado encontrado');
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar:', error);
+            
+            // SEMPRE LIMPA A TELA EM CASO DE ERRO OU SEM DADOS
+            limparDashboard();
+            
+            this.innerHTML = '📭';
+            this.style.background = '#f59e0b';
+            
+            // Mostra mensagem mais amigável
+            if (error.message.includes('Nenhum dado') || error.message.includes('nenhum dado')) {
+                showToast(`📭 ${selectedMonth} - Mês sem dados salvos`, 'info');
+            } else {
+                showToast(`Erro: ${error.message}`, 'warning');
+            }
+        }
+        
+        setTimeout(() => {
+            this.innerHTML = originalText;
+            this.style.background = '#3b82f6';
+            this.disabled = false;
+        }, 1500);
+    };
+}
+    function limparDashboard() {
+    console.log('🧹 LIMPANDO DASHBOARD...');
+    
+    // Limpar todas as tabelas
+    ['renda', 'despesa', 'invest'].forEach(tipo => {
+        const tbody = document.querySelector(`#${tipo} tbody`);
+        if (tbody) {
+            tbody.innerHTML = '';
+        }
+    });
+    
+    // Zerar totais
+    document.getElementById('totalRenda').textContent = 'R$ 0,00';
+    document.getElementById('totalDespesa').textContent = 'R$ 0,00';
+    document.getElementById('totalInvest').textContent = 'R$ 0,00';
+    document.getElementById('saldo').textContent = 'R$ 0,00';
+    
+    // Atualizar contagens
+    updateCounts();
+    
+    // Adicionar uma linha vazia em cada tabela
+    setTimeout(() => {
+        addRow('renda', '', 0);
+        addRow('despesa', '', 0);
+        addInvest('', 0, 0);
+        
+        // Atualizar gráfico
+        if (typeof updateChart === 'function') {
+            updateChart(0, 0, 0, 0);
+        }
+        
+        console.log('✅ Dashboard limpo');
+    }, 100);
+}
+
+// Adicione também ao window
+window.limparDashboard = limparDashboard;
+    // Botão SALVAR
+    const saveBtn = document.getElementById('hudSaveBtn');
+    if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
+        saveBtn.setAttribute('data-hud-configured', 'true');
+        saveBtn.onclick = async function() {
+            console.log('💾 Botão Salvar clicado');
+            
+            const monthIndex = document.getElementById('hudMonth').value;
+            const year = document.getElementById('hudYear').value;
+            const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+            
+            const selectedMonth = `${months[monthIndex]}-${year}`;
+            
+            console.log(`💾 Salvando dados em ${selectedMonth}...`);
+            
+            // Animação
+            const originalText = this.innerHTML;
+            const originalBg = this.style.background;
+            this.innerHTML = '💾';
+            this.disabled = true;
+            
+            try {
+                // 1. Salvar no localStorage (sempre funciona)
+                const data = collectDashboardData();
+                const key = `financas_dashboard_${selectedMonth}`;
+                
+                localStorage.setItem(key, JSON.stringify(data));
+                console.log(`✅ Salvo localmente em: ${selectedMonth}`);
+                
+                // 2. Tentar salvar no Supabase também (se disponível)
+                if (typeof saveDashboardToSupabase === 'function') {
+                    try {
+                        await saveDashboardToSupabase();
+                        console.log('✅ Também salvo no Supabase');
+                    } catch (supabaseError) {
+                        console.log('⚠️ Supabase falhou, mas local está salvo');
+                    }
+                }
+                
+                // Feedback
+                this.innerHTML = '✅';
+                this.style.background = '#059669';
+                showToast(`Dados salvos em ${selectedMonth}!`, 'success');
+                
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                this.innerHTML = '❌';
+                this.style.background = '#dc2626';
+                showToast(`Erro ao salvar: ${error.message}`, 'error');
+            }
+            
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.style.background = originalBg;
+                this.disabled = false;
+            }, 1500);
+        };
+    }
+    
+    // Quando mudar mês/ano
+    const monthEl = document.getElementById('hudMonth');
+    const yearEl = document.getElementById('hudYear');
+    
+    if (monthEl && yearEl && !monthEl.hasAttribute('data-hud-configured')) {
+        monthEl.setAttribute('data-hud-configured', 'true');
+        yearEl.setAttribute('data-hud-configured', 'true');
+        
+        const updateDisplay = () => {
+            const monthIndex = monthEl.value;
+            const year = yearEl.value;
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            console.log(`📅 Período selecionado: ${months[monthIndex]}/${year}`);
+            
+            // Opcional: Atualizar título da página
+            const pageTitle = document.querySelector('h1');
+            if (pageTitle) {
+                const baseTitle = pageTitle.textContent.replace(/ - .*/, '');
+                pageTitle.textContent = `${baseTitle} - ${months[monthIndex]}/${year}`;
+            }
+        };
+        
+        monthEl.onchange = updateDisplay;
+        yearEl.onchange = updateDisplay;
+        
+        // Atualizar inicialmente
+        updateDisplay();
+    }
+    
+    // Marcar como configurado
+    hudSetupDone = true;
+    console.log('✅ HUD configurado com sucesso');
+}
+
+// Sistema de inicialização inteligente
+function initMonthHUD() {
+    console.log('🚀 Inicializando sistema HUD...');
+    
+    // Limpar HUDs duplicados se existirem
+    const existingHUDs = document.querySelectorAll('#monthHUD');
+    if (existingHUDs.length > 1) {
+        console.log(`🧹 Removendo ${existingHUDs.length - 1} HUD(s) duplicado(s)`);
+        for (let i = 1; i < existingHUDs.length; i++) {
+            existingHUDs[i].remove();
+        }
+    }
+    
+    // Criar HUD se não existir
+    if (!document.getElementById('monthHUD')) {
+        createPermanentMonthHUD();
+    } else {
+        console.log('✅ HUD já existe, apenas configurando...');
+        setupHUDfunctionality();
+    }
+}
+
+// Gerenciador de inicialização único
+let hudInitialized = false;
+
+function initializeHUDSystem() {
+    if (hudInitialized) {
+        console.log('⏭️ Sistema HUD já inicializado');
+        return;
+    }
+    
+    console.log('🎯 Iniciando sistema HUD...');
+    
+    // 1. Quando o DOM carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📋 DOM carregado, agendando HUD...');
+        
+        // Aguardar um pouco para o dashboard carregar
+        setTimeout(() => {
+            initMonthHUD();
+        }, 1500);
+    });
+    
+    // 2. Se o dashboard for recarregado dinamicamente
+    if (typeof loadDashboardContent === 'function') {
+        console.log('🔁 Monitorando recarregamentos do dashboard...');
+        
+        // Sobrescrever com proteção
+        const originalLoadDashboard = loadDashboardContent;
+        window.loadDashboardContent = function() {
+            console.log('🔄 Dashboard recarregando, HUD será recriado...');
+            
+            // Resetar flags
+            hudCreated = false;
+            hudSetupDone = false;
+            
+            // Chamar função original
+            originalLoadDashboard();
+            
+            // Recriar HUD após um delay
+            setTimeout(() => {
+                initMonthHUD();
+            }, 1000);
+        };
+    }
+    
+    // 3. Inicialização imediata se o DOM já estiver pronto
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        console.log('⚡ DOM já pronto, inicializando HUD agora...');
+        setTimeout(() => {
+            initMonthHUD();
+        }, 500);
+    }
+    
+    hudInitialized = true;
+    console.log('✅ Sistema HUD inicializado com sucesso');
+}
+
+// Iniciar o sistema
+initializeHUDSystem();
+
+// Função auxiliar para remover HUDs duplicados manualmente
+function cleanupDuplicateHUDs() {
+    const hudElements = document.querySelectorAll('[id*="monthHUD"], [id*="hudMonth"], [id*="hudYear"]');
+    console.log(`🔍 Encontrados ${hudElements.length} elementos relacionados ao HUD`);
+    
+    // Manter apenas o primeiro HUD
+    const mainHUD = document.getElementById('monthHUD');
+    if (mainHUD) {
+        let removedCount = 0;
+        
+        // Remover outros elementos HUD
+        document.querySelectorAll('div').forEach(div => {
+            if (div !== mainHUD && 
+                (div.id.includes('monthHUD') || 
+                 div.querySelector('[id*="hudMonth"]') || 
+                 div.querySelector('[id*="hudYear"]'))) {
+                div.remove();
+                removedCount++;
+            }
+        });
+        
+        if (removedCount > 0) {
+            console.log(`🧹 Removidos ${removedCount} HUD(s) duplicado(s)`);
+            showToast(`Removidos ${removedCount} HUD(s) duplicados`, 'info');
+        }
+    }
+}
+
+// Exportar funções úteis
+window.createPermanentMonthHUD = createPermanentMonthHUD;
+window.setupHUDfunctionality = setupHUDfunctionality;
+window.cleanupDuplicateHUDs = cleanupDuplicateHUDs;
+window.initMonthHUD = initMonthHUD;
 // ============================================
 // FUNÇÕES DO DASHBOARD (mantenha as suas)
 // ============================================

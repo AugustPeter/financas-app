@@ -562,7 +562,92 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, 1000);
 });
 // Função para mostrar o formulário de login
+// ============================================
+// BOTÃO DE SAIR SIMPLES
+// ============================================
 
+/**
+ * Criar botão de sair
+ */
+function createLogoutButton() {
+    console.log('🚪 Criando botão de sair...');
+    
+    // Remover botão antigo se existir
+    const oldButton = document.getElementById('logoutButton');
+    if (oldButton) oldButton.remove();
+    
+    // Criar botão
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'logoutButton';
+    logoutBtn.innerHTML = '🚪 Sair';
+    
+    // Estilos simples
+    logoutBtn.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        z-index: 1000;
+        transition: background 0.2s;
+    `;
+    
+    // Efeito hover
+    logoutBtn.onmouseover = () => logoutBtn.style.background = '#dc2626';
+    logoutBtn.onmouseout = () => logoutBtn.style.background = '#ef4444';
+    
+    // Ação de sair
+    logoutBtn.onclick = async () => {
+        if (confirm('Deseja realmente sair da conta?')) {
+            logoutBtn.disabled = true;
+            logoutBtn.innerHTML = 'Saindo...';
+            
+            try {
+                await supabase.auth.signOut();
+                window.location.reload();
+            } catch (error) {
+                console.error('Erro ao sair:', error);
+                alert('Erro ao sair da conta');
+                logoutBtn.disabled = false;
+                logoutBtn.innerHTML = '🚪 Sair';
+            }
+        }
+    };
+    
+    // Adicionar ao body
+    document.body.appendChild(logoutBtn);
+    console.log('✅ Botão de sair criado');
+}
+
+// ============================================
+// EXECUTAR QUANDO USUÁRIO ESTIVER LOGADO
+// ============================================
+
+// Executar quando autenticação mudar
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        setTimeout(createLogoutButton, 500);
+    }
+    
+    if (event === 'SIGNED_OUT') {
+        const logoutBtn = document.getElementById('logoutButton');
+        if (logoutBtn) logoutBtn.remove();
+    }
+});
+
+// Executar também quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(createLogoutButton, 1000);
+});
+
+console.log('✅ Sistema de logout carregado');
 // Exportar funções para uso em outros arquivos
 window.auth = {
     showLoginForm,

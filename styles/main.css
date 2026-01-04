@@ -1224,3 +1224,100 @@ tbody tr:hover {
     font-size: 1.25rem;
   }
 }
+
+/* Estilos para o HUD permanente */
+#monthHUD {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 20px auto;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 12px;
+    border: 1px solid #334155;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+#monthHUD select {
+    padding: 6px 12px;
+    background: #0f172a;
+    color: white;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 100px;
+    transition: all 0.2s;
+}
+
+#monthHUD select:hover {
+    border-color: #60a5fa;
+    background: #1e293b;
+}
+
+#monthHUD button {
+    padding: 6px 14px;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+#hudLoadBtn {
+    background: #3b82f6;
+}
+
+#hudLoadBtn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+#hudSaveBtn {
+    background: #10b981;
+}
+
+#hudSaveBtn:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+#monthHUD button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    #monthHUD {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+        max-width: 90%;
+    }
+    
+    #monthHUD > div {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+    
+    #monthHUD select {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    #monthHUD button {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -511,7 +511,241 @@ function showError(message) {
     </div>
   `;
 }
+/**
+ * Criar seletor de mês
+ */
+function createMonthSelector() {
+    console.log('📅 Criando seletor de mês...');
+    
+    // Criar container do seletor
+    const selectorContainer = document.createElement('div');
+    selectorContainer.id = 'monthSelector';
+    selectorContainer.style.cssText = `
+        margin: 20px 0;
+        padding: 15px;
+        background: #1e293b;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    `;
+    
+    // Título
+    const title = document.createElement('h3');
+    title.textContent = '📅 Seletor de Mês';
+    title.style.margin = '0';
+    title.style.color = '#e2e8f0';
+    
+    // Select de mês
+    const monthSelect = document.createElement('select');
+    monthSelect.id = 'monthSelect';
+    monthSelect.style.cssText = `
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: #0f172a;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        font-size: 14px;
+        min-width: 150px;
+    `;
+    
+    // Select de ano
+    const yearSelect = document.createElement('select');
+    yearSelect.id = 'yearSelect';
+    yearSelect.style.cssText = monthSelect.style.cssText;
+    
+    // Popular meses
+    const months = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    
+    months.forEach((month, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = month;
+        if (index === new Date().getMonth()) {
+            option.selected = true;
+        }
+        monthSelect.appendChild(option);
+    });
+    
+    // Popular anos (2020-2030)
+    const currentYear = new Date().getFullYear();
+    for (let year = 2020; year <= 2030; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) {
+            option.selected = true;
+        }
+        yearSelect.appendChild(option);
+    }
+    
+    // Botão Carregar
+    const loadButton = document.createElement('button');
+    loadButton.textContent = '📥 Carregar Mês';
+    loadButton.style.cssText = `
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.3s;
+    `;
+    loadButton.onmouseover = () => loadButton.style.background = '#2563eb';
+    loadButton.onmouseout = () => loadButton.style.background = '#3b82f6';
+    
+    loadButton.onclick = async () => {
+        const monthIndex = parseInt(monthSelect.value);
+        const year = parseInt(yearSelect.value);
+        const monthName = months[monthIndex];
+        const monthKey = `${monthName.toLowerCase()}-${year}`;
+        
+        console.log(`📅 Carregando mês: ${monthKey}`);
+        loadButton.disabled = true;
+        loadButton.textContent = '⏳ Carregando...';
+        
+        try {
+            await loadMonthData(monthKey);
+            showTemporaryMessage(`📅 Dados de ${monthName}/${year} carregados!`, 'success');
+        } catch (error) {
+            console.error('❌ Erro ao carregar mês:', error);
+            showTemporaryMessage('❌ Erro ao carregar dados do mês', 'error');
+        } finally {
+            loadButton.disabled = false;
+            loadButton.textContent = '📥 Carregar Mês';
+        }
+    };
+    
+    // Botão Salvar Mês Atual
+    const saveButton = document.createElement('button');
+    saveButton.textContent = '💾 Salvar no Mês Selecionado';
+    saveButton.style.cssText = loadButton.style.cssText;
+    saveButton.style.background = '#10b981';
+    saveButton.onmouseover = () => saveButton.style.background = '#059669';
+    saveButton.onmouseout = () => saveButton.style.background = '#10b981';
+    
+    saveButton.onclick = async () => {
+        const monthIndex = parseInt(monthSelect.value);
+        const year = parseInt(yearSelect.value);
+        const monthName = months[monthIndex];
+        
+        saveButton.disabled = true;
+        saveButton.textContent = '⏳ Salvando...';
+        
+        try {
+            await saveCurrentMonthData(monthName, year);
+            showTemporaryMessage(`💾 Dados salvos em ${monthName}/${year}!`, 'success');
+        } catch (error) {
+            console.error('❌ Erro ao salvar mês:', error);
+            showTemporaryMessage('❌ Erro ao salvar dados', 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = '💾 Salvar no Mês Selecionado';
+        }
+    };
+    
+    // Adicionar ao container
+    selectorContainer.appendChild(title);
+    selectorContainer.appendChild(monthSelect);
+    selectorContainer.appendChild(yearSelect);
+    selectorContainer.appendChild(loadButton);
+    selectorContainer.appendChild(saveButton);
+    
+    // Adicionar ao dashboard (ajuste conforme sua estrutura)
+    const dashboard = document.querySelector('#dashboard, [data-tab="dashboard"]');
+    if (dashboard) {
+        dashboard.insertBefore(selectorContainer, dashboard.firstChild);
+    } else {
+        document.body.insertBefore(selectorContainer, document.body.firstChild);
+    }
+    
+    console.log('✅ Seletor de mês criado');
+}
 
+/**
+ * Carregar dados de um mês específico
+ */
+async function loadMonthData(monthKey) {
+    console.log(`📥 Carregando dados do mês: ${monthKey}`);
+    
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+        throw new Error('Usuário não está logado');
+    }
+    
+    const { data, error } = await supabase
+        .from('finance_data')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('month', monthKey)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    
+    if (error) {
+        throw new Error(`Erro ao buscar: ${error.message}`);
+    }
+    
+    if (!data) {
+        // Criar dados vazios para o mês
+        const emptyData = {
+            rendas: [],
+            despesas: [],
+            investimentos: [],
+            totais: { renda: 0, despesa: 0, saldo: 0 },
+            ultima_atualizacao: new Date().toISOString()
+        };
+        
+        applyDashboardData(emptyData);
+        console.log(`📭 Mês ${monthKey} vazio - criado novo`);
+        return { success: true, empty: true };
+    }
+    
+    applyDashboardData(data.data);
+    console.log(`✅ Dados do mês ${monthKey} carregados`);
+    return { success: true, data: data.data };
+}
+
+/**
+ * Salvar dados no mês selecionado
+ */
+async function saveCurrentMonthData(monthName, year) {
+    console.log(`💾 Salvando em ${monthName}/${year}...`);
+    
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+        throw new Error('Usuário não está logado');
+    }
+    
+    const monthKey = `${monthName.toLowerCase()}-${year}`;
+    const dashboardData = collectDashboardData();
+    
+    const { data, error } = await supabase
+        .from('finance_data')
+        .upsert({
+            user_id: session.user.id,
+            month: monthKey,
+            data: dashboardData,
+            updated_at: new Date().toISOString()
+        })
+        .select();
+    
+    if (error) {
+        throw new Error(`Erro ao salvar: ${error.message}`);
+    }
+    
+    console.log(`✅ Dados salvos em ${monthKey}`);
+    return { success: true, data: data[0] };
+}
 // Funções auxiliares globais
 window.switchTab = switchTab;
 window.loadDashboard = loadDashboard;
