@@ -167,80 +167,106 @@ async function loadDashboardFromSupabase() {
  * Coletar dados da interface
  */
 function collectDashboardData() {
-    console.log('📋 Coletando dados da interface...');
+    console.log('📋 COLETANDO DADOS - VERSÃO CORRIGIDA DEFINITIVA');
     
     const data = {
         rendas: [],
         despesas: [],
-        investimentos: [],
+        investimentos: [], // ← SERÁ PREENCHIDO
         totais: {},
         ultima_atualizacao: new Date().toISOString()
     };
     
-    // Encontrar tabelas DINAMICAMENTE
-    const findTable = (possibleIds) => {
-        for (const id of possibleIds) {
-            const table = document.getElementById(id);
-            if (table) return table.querySelector('tbody');
+    // 1. RENDAS (tabela #renda)
+    const rendaTable = document.getElementById('renda');
+    if (rendaTable?.querySelector('tbody')) {
+        rendaTable.querySelectorAll('tbody tr').forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length >= 2) {
+                data.rendas.push({
+                    descricao: (inputs[0].value || '').trim(),
+                    valor: parseFloat(inputs[1].value) || 0
+                });
+            }
+        });
+        console.log(`📈 ${data.rendas.length} rendas coletadas`);
+    }
+    
+    // 2. DESPESAS (tabela #despesa)
+    const despesaTable = document.getElementById('despesa');
+    if (despesaTable?.querySelector('tbody')) {
+        despesaTable.querySelectorAll('tbody tr').forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length >= 2) {
+                data.despesas.push({
+                    descricao: (inputs[0].value || '').trim(),
+                    valor: parseFloat(inputs[1].value) || 0
+                });
+            }
+        });
+        console.log(`📉 ${data.despesas.length} despesas coletadas`);
+    }
+    
+    // 3. ✅✅✅ INVESTIMENTOS (tabela #invest) - VERSÃO QUE FUNCIONA
+    const investTable = document.getElementById('invest');
+    console.log('🔍 Procurando tabela #invest:', !!investTable);
+    
+    if (investTable) {
+        const tbody = investTable.querySelector('tbody');
+        console.log('Tbody encontrado?', !!tbody);
+        
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            console.log(`📊 Encontrei ${rows.length} linhas`);
+            
+            rows.forEach((row, index) => {
+                // Buscar TODOS os inputs da linha
+                const inputs = row.querySelectorAll('input');
+                console.log(`Linha ${index + 1}: ${inputs.length} inputs`);
+                
+                // Precisa ter pelo menos 3 inputs (Nome, Aporte, Meta)
+                if (inputs.length >= 3) {
+                    const investimento = {
+                        nome: (inputs[0].value || '').trim(),
+                        aporte: parseFloat(inputs[1].value) || 0,
+                        meta: parseFloat(inputs[2].value) || 0
+                    };
+                    
+                    console.log(`   → "${investimento.nome}" | ${investimento.aporte} | ${investimento.meta}`);
+                    
+                    // ✅✅✅ ADICIONAR SEMPRE - NÃO FILTRAR
+                    data.investimentos.push(investimento);
+                } else {
+                    console.log(`   ⚠️ Linha com apenas ${inputs.length} inputs`);
+                }
+            });
+            
+            console.log(`🎉 TOTAL: ${data.investimentos.length} investimentos coletados`);
         }
-        return null;
-    };
-    
-    // Coletar rendas
-    const rendaTbody = findTable(['rendaTable', 'renda', 'incomeTable', 'tableRendas']);
-    if (rendaTbody) {
-        rendaTbody.querySelectorAll('tr').forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 2) {
-                const descricao = cells[0].textContent || cells[0].querySelector('input')?.value || '';
-                const valorText = cells[1].textContent || cells[1].querySelector('input')?.value || '0';
-                const valor = parseFloat(valorText.replace(/[^\d,.-]/g, '').replace(',', '.'));
-                
-                if (descricao.trim() || !isNaN(valor)) {
-                    data.rendas.push({ 
-                        descricao: descricao.trim(), 
-                        valor: isNaN(valor) ? 0 : valor 
-                    });
-                }
-            }
-        });
+    } else {
+        console.error('❌ Tabela #invest não encontrada!');
     }
     
-    // Coletar despesas
-    const despesaTbody = findTable(['despesaTable', 'despesa', 'expensesTable', 'tableDespesas']);
-    if (despesaTbody) {
-        despesaTbody.querySelectorAll('tr').forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 2) {
-                const descricao = cells[0].textContent || cells[0].querySelector('input')?.value || '';
-                const valorText = cells[1].textContent || cells[1].querySelector('input')?.value || '0';
-                const valor = parseFloat(valorText.replace(/[^\d,.-]/g, '').replace(',', '.'));
-                
-                if (descricao.trim() || !isNaN(valor)) {
-                    data.despesas.push({ 
-                        descricao: descricao.trim(), 
-                        valor: isNaN(valor) ? 0 : valor 
-                    });
-                }
-            }
-        });
-    }
-    
-    // Coletar totais
-    const getTotal = (elementId) => {
-        const el = document.getElementById(elementId);
+    // 4. TOTAIS
+    const getElementValue = (id) => {
+        const el = document.getElementById(id);
         if (!el) return 0;
         const text = el.textContent || '';
         return parseFloat(text.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
     };
     
     data.totais = {
-        renda: getTotal('totalRenda'),
-        despesa: getTotal('totalDespesa'),
-        saldo: getTotal('saldo')
+        renda: getElementValue('totalRenda'),
+        despesa: getElementValue('totalDespesa'),
+        saldo: getElementValue('saldo')
     };
     
-    console.log('📦 Dados coletados:', data);
+    console.log('📦 RESUMO FINAL:', {
+        rendas: data.rendas.length,
+        despesas: data.despesas.length,
+        investimentos: data.investimentos.length
+    });
+    
     return data;
 }
 
@@ -250,57 +276,113 @@ function collectDashboardData() {
 function applyDashboardData(data) {
     console.log('🔄 Aplicando dados na interface...');
     
-    if (!data) {
-        console.log('⚠️ Nenhum dado para aplicar');
-        return;
+    if (!data) return;
+    
+    // VARIÁVEL DE CONTROLE - impede calc() múltiplo
+    let isApplyingData = true;
+    const originalCalc = window.calc;
+    
+    // 1. Substituir temporariamente calc() para evitar chamadas múltiplas
+    if (typeof originalCalc === 'function') {
+        window.calc = function() {
+            if (!isApplyingData) {
+                console.log('🧮 calc() executado normalmente');
+                return originalCalc();
+            }
+            console.log('⏸️ calc() bloqueado durante aplicação de dados');
+        };
     }
     
-    // 1. Limpar tabelas atuais
-    const clearTable = (tableId) => {
-        const table = document.getElementById(tableId);
-        if (table && table.querySelector('tbody')) {
-            table.querySelector('tbody').innerHTML = '';
-        }
-    };
+    // 2. Limpar tabelas rapidamente
+    console.log('🧹 Limpando tabelas...');
     
-    ['rendaTable', 'despesaTable', 'renda', 'despesa'].forEach(clearTable);
+    const tables = [
+        '#rendaTable tbody', '#renda tbody',
+        '#despesaTable tbody', '#despesa tbody', 
+        '#investmentTable tbody', '#invest tbody'
+    ];
     
-    // 2. Verificar se addRow existe
-    if (typeof window.addRow !== 'function') {
-        console.error('❌ addRow não encontrado!');
-        showError('Função addRow não encontrada. O dashboard não pode carregar dados.');
-        return;
-    }
+    tables.forEach(selector => {
+        const table = document.querySelector(selector);
+        if (table) table.innerHTML = '';
+    });
     
-    // 3. Adicionar rendas
-    if (data.rendas && Array.isArray(data.rendas)) {
-        data.rendas.forEach(item => {
-            if (item.descricao || item.valor) {
+    console.log('💰 Todas as tabelas limpas');
+    
+    // 3. Aplicar TODOS os dados de uma vez (sem cálculos intermediários)
+    
+    // Aplicar rendas
+    if (data.rendas && Array.isArray(data.rendas) && data.rendas.length > 0) {
+        console.log(`📈 Aplicando ${data.rendas.length} rendas`);
+        
+        if (typeof window.addRow === 'function') {
+            data.rendas.forEach(item => {
+                // Adiciona mas calc() bloqueado não roda
                 window.addRow('renda', item.descricao, item.valor);
-            }
-        });
+            });
+        }
     }
     
-    // 4. Adicionar despesas
-    if (data.despesas && Array.isArray(data.despesas)) {
-        data.despesas.forEach(item => {
-            if (item.descricao || item.valor) {
+    // Aplicar despesas  
+    if (data.despesas && Array.isArray(data.despesas) && data.despesas.length > 0) {
+        console.log(`📉 Aplicando ${data.despesas.length} despesas`);
+        
+        if (typeof window.addRow === 'function') {
+            data.despesas.forEach(item => {
                 window.addRow('despesa', item.descricao, item.valor);
-            }
-        });
+            });
+        }
     }
     
-    // 5. Recalcular totais
-    if (typeof window.calc === 'function') {
-        setTimeout(() => {
-            window.calc();
-            console.log('✅ Cálculos atualizados');
-        }, 100);
+    // Aplicar investimentos
+    if (data.investimentos && Array.isArray(data.investimentos) && data.investimentos.length > 0) {
+        console.log(`💰 APLICANDO ${data.investimentos.length} INVESTIMENTOS`);
+        
+        let investTableBody = document.querySelector('#investmentTable tbody') || 
+                             document.querySelector('#invest tbody');
+        
+        if (investTableBody) {
+            data.investimentos.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input class="table-input" value="${item.nome || ''}" placeholder="Nome"></td>
+                    <td><input class="table-input" type="number" value="${item.aporte || 0}" placeholder="Aporte" step="0.01"></td>
+                    <td><input class="table-input" type="number" value="${item.meta || 0}" placeholder="Meta" step="0.01"></td>
+                    <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
+                `;
+                investTableBody.appendChild(row);
+            });
+            console.log(`✅ ${data.investimentos.length} investimentos aplicados`);
+        }
     }
     
-    console.log('✅ Dados aplicados na interface!');
+    // 4. AGORA restaurar calc() e executar APENAS UMA VEZ
+    setTimeout(() => {
+        console.log('🎯 Finalizando aplicação...');
+        isApplyingData = false; // Libera calc()
+        
+        // Restaurar função original
+        if (typeof originalCalc === 'function') {
+            window.calc = originalCalc;
+            
+            // Adicionar eventos oninput APÓS restaurar calc()
+            document.querySelectorAll('.table-input').forEach(input => {
+                if (!input.hasAttribute('data-events-added')) {
+                    input.setAttribute('oninput', 'calc()');
+                    input.setAttribute('data-events-added', 'true');
+                }
+            });
+            
+            // Executar calc() UMA ÚNICA VEZ
+            console.log('🧮 Executando cálculo FINAL...');
+            originalCalc();
+        }
+        
+        console.log('✅ Dados aplicados e cálculo executado UMA VEZ');
+    }, 150);
+    
+    console.log('✅ applyDashboardData concluído (calc será chamado em 150ms)');
 }
-
 /**
  * Obter mês atual
  */
