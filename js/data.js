@@ -53,24 +53,9 @@ function getData(id) {
 // Soma de valores em uma tabela
 function sumTable(id, colIndex = 1) {
   const rows = document.querySelectorAll(`#${id} tbody tr`);
-  if (rows.length === 0) return 0;
-  
   return Array.from(rows).reduce((total, tr) => {
-    const inputs = tr.querySelectorAll('input');
-    if (id === 'renda') {
-      // Renda: primeiro input é descrição, segundo é valor
-      const valueInput = inputs[1]; // Segundo input é o valor
-      if (valueInput) {
-        return total + (parseFloat(valueInput.value) || 0);
-      }
-    } else {
-      // Despesa: primeiro input é descrição, segundo é valor, terceiro é checkbox
-      const valueInput = inputs[1]; // Segundo input é o valor
-      if (valueInput) {
-        return total + (parseFloat(valueInput.value) || 0);
-      }
-    }
-    return total;
+    const valueInput = tr.querySelectorAll('input')[1];
+    return total + (valueInput ? (parseFloat(valueInput.value) || 0) : 0);
   }, 0);
 }
 

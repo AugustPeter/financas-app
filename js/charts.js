@@ -19,14 +19,10 @@
 
     destroy(id) {
       const inst = this.getInstance(id);
-      if (inst && typeof inst.destroy === 'function') {
-        try { inst.destroy(); } catch (e) {}
-      }
+      if (inst && typeof inst.destroy === 'function') inst.destroy();
       this.instances.delete(id);
       const canvas = this.getCanvas(id);
-      if (canvas && canvas._chartInstance) {
-        try { canvas._chartInstance = null; } catch (e) {}
-      }
+      if (canvas) canvas._chartInstance = null;
     },
 
     createOrUpdate(id, createConfigFn) {
@@ -37,22 +33,14 @@
       const existing = this.getInstance(id);
       const config = createConfigFn();
       if (existing) {
-        // Update data & options in place to avoid re-creating canvas conflicts
         existing.data = config.data;
         existing.options = config.options;
-        try { existing.update(); } catch (e) {
-          // Fallback: destroy and recreate if update fails
-          this.destroy(id);
-          const inst = new Chart(ctx, config);
-          this.instances.set(id, inst);
-          try { canvas._chartInstance = inst; } catch (e) {}
-          return inst;
-        }
+        existing.update();
         return existing;
       } else {
         const inst = new Chart(ctx, config);
         this.instances.set(id, inst);
-        try { canvas._chartInstance = inst; } catch (e) {}
+        canvas._chartInstance = inst;
         return inst;
       }
     }
@@ -60,10 +48,9 @@
 
   // Safe formatter (falls back if formatCurrency not yet available)
   function safeFormatCurrency(value) {
-    if (typeof formatCurrency === 'function') {
-      try { return formatCurrency(value); } catch (e) { /* ignore */ }
-    }
-    return 'R$ ' + Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return typeof formatCurrency === 'function' 
+      ? formatCurrency(value)
+      : 'R$ ' + Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // Base chart options reused

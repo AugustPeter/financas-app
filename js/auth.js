@@ -7,22 +7,16 @@ console.log('🔐 auth.js carregado');
 // ============================================
 
 async function checkAuth() {
-    console.log('🔍 Verificando autenticação...');
     try {
         const { data: { session }, error } = await window.supabase.auth.getSession();
-        if (error) {
-            console.error('❌ Erro ao verificar sessão:', error.message);
-            return null;
-        }
+        if (error) throw error;
+        
         if (session) {
-            console.log('✅ Usuário autenticado:', session.user.email);
             return session;
         } else {
-            console.log('👤 Usuário não autenticado');
             return null;
         }
     } catch (err) {
-        console.error('❌ Erro inesperado no checkAuth:', err);
         return null;
     }
 }

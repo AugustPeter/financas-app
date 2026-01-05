@@ -1,15 +1,9 @@
 // js/dashboard.js - VERSÃO CORRIGIDA COM SUPABASE-DATA.JS
-console.log('📊 dashboard.js carregado');
-  let isSaving = false;
+let isSaving = false;
 // Função principal que será chamada pelo app.js
 function loadDashboardContent() {
-  console.log('🎯 Criando conteúdo do dashboard...');
-  
   const dashboardContent = document.getElementById('dashboardContent');
-  if (!dashboardContent) {
-    console.error('❌ Elemento dashboardContent não encontrado!');
-    return;
-  }
+  if (!dashboardContent) return;
   
   // HTML do dashboard
   dashboardContent.innerHTML = `
@@ -107,44 +101,31 @@ function loadDashboardContent() {
     addInvest('', 0, 0);
     updateCounts();
     calc();
-    
-    // NÃO carregar aqui - deixar o updateDisplay() do HUD fazer isso
-    console.log('📥 Carregamento automático delegado ao HUD...');
+    // Carregamento delegado ao HUD
   }, 100);
 }
 
-// 🔥 NOVA FUNÇÃO PARA GERAR GRÁFICO INICIAL 🔥
+// Gerar gráfico inicial
 function generateInitialChart() {
-  console.log('📊 Gerando gráfico inicial...');
+  if (typeof Chart === 'undefined' || !document.getElementById('grafico')) return;
   
-  // Verificar se Chart.js está disponível
-  if (typeof Chart === 'undefined') {
-    console.error('❌ Chart.js não carregado!');
-    return;
-  }
+  // Extração otimizada de valores
+  const parseCardValue = (id) => parseFloat(
+    document.getElementById(id).textContent.replace(/[^\d,]/g, '').replace(',', '.')
+  ) || 0;
   
-  // Verificar se canvas existe
-  const canvas = document.getElementById('grafico');
-  if (!canvas) {
-    console.error('❌ Canvas #grafico não encontrado');
-    return;
-  }
+  const valores = {
+    renda: parseCardValue('totalRenda'),
+    despesa: parseCardValue('totalDespesa'),
+    invest: parseCardValue('totalInvest'),
+    saldo: parseCardValue('saldo')
+  };
   
-  // Pegar os valores dos cards
-  const totalRenda = parseFloat(document.getElementById('totalRenda').textContent.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  const totalDespesa = parseFloat(document.getElementById('totalDespesa').textContent.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  const totalInvest = parseFloat(document.getElementById('totalInvest').textContent.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  const saldoValor = parseFloat(document.getElementById('saldo').textContent.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  
-  console.log('📈 Valores para gráfico:', { totalRenda, totalDespesa, totalInvest, saldoValor });
-  
-  // Usar SUA função updateChart se existir
+  // Chamar função de atualização
   if (typeof updateChart === 'function') {
-    console.log('🎯 Usando sua função updateChart()');
-    updateChart(totalRenda, totalDespesa, totalInvest, saldoValor);
+    updateChart(valores.renda, valores.despesa, valores.invest, valores.saldo);
   } else {
-    console.log('⚠️ Criando gráfico alternativo');
-    createAlternativeChart(totalRenda, totalDespesa, totalInvest, saldoValor);
+    createAlternativeChart(valores.renda, valores.despesa, valores.invest, valores.saldo);
   }
 }
 
@@ -212,36 +193,20 @@ function createAlternativeChart(renda, despesa, investimento, saldo) {
   });
 }
 
-// HUD PERMANENTE SEM DUPLICAÇÃO - Adicionar no final do dashboard.js
-let hudCreated = false; // Variável global para controlar
+// HUD PERMANENTE SEM DUPLICAÇÃO
+let hudCreated = false;
 
 function createPermanentMonthHUD() {
-    console.log('🎯 Tentando criar HUD permanente...');
+  if (hudCreated || document.getElementById('monthHUD')) return;
     
-    // Evitar duplicação - verificar se já existe
-    if (hudCreated || document.getElementById('monthHUD')) {
-        console.log('⏭️ HUD já existe, pulando...');
-        return;
+  setTimeout(() => {
+    if (document.getElementById('monthHUD')) return;
+    
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) {
+      setTimeout(createPermanentMonthHUD, 500);
+      return;
     }
-    
-    // Aguardar o DOM carregar completamente
-    setTimeout(() => {
-        // Verificar novamente (segurança dupla)
-        if (document.getElementById('monthHUD')) {
-            console.log('✅ HUD já existe (verificação dupla)');
-            return;
-        }
-        
-        // Procurar por um local bom para colocar o HUD
-        const dashboardContent = document.getElementById('dashboardContent');
-        
-        if (!dashboardContent) {
-            console.log('❌ dashboardContent não encontrado, tentando novamente em 500ms');
-            setTimeout(createPermanentMonthHUD, 500);
-            return;
-        }
-        
-        console.log('✅ dashboardContent encontrado, criando HUD...');
         
         // LOCAL ESPECÍFICO: Após os summary-cards
         const summaryCards = dashboardContent.querySelector('.summary-cards');
@@ -319,62 +284,44 @@ function createPermanentMonthHUD() {
         
         // Inserir o HUD
         if (summaryCards) {
-            // Inserir APÓS os summary cards
             summaryCards.insertAdjacentHTML('afterend', hudHTML);
-            console.log('✅ HUD inserido após summary cards');
         } else {
-            // Inserir no início do dashboardContent
             dashboardContent.insertAdjacentHTML('afterbegin', hudHTML);
-            console.log('✅ HUD inserido no início do dashboard');
         }
         
-        // Marcar como criado
         hudCreated = true;
-        console.log('✅ HUD permanente criado com sucesso');
-        
-        // Configurar funcionalidades
         setupHUDfunctionality();
-        
-    }, 1000); // Aguardar 1 segundo para garantir que tudo carregou
+    }, 1000);
 }
 
-// Configurar funcionalidade do HUD (com proteção contra duplicação)
+// Configurar funcionalidade do HUD
 let hudSetupDone = false;
 
 function setupHUDfunctionality() {
-    // Evitar configuração duplicada
-    if (hudSetupDone) {
-        console.log('⏭️ HUD já configurado, pulando...');
-        return;
-    }
+    if (hudSetupDone) return;
     
-    const now = new Date();
     const monthSelect = document.getElementById('hudMonth');
     const yearSelect = document.getElementById('hudYear');
     
     if (!monthSelect || !yearSelect) {
-        console.log('❌ Elementos do HUD não encontrados, tentando novamente...');
         setTimeout(setupHUDfunctionality, 500);
         return;
     }
     
     // Configurar valores atuais
+    const now = new Date();
     monthSelect.value = now.getMonth();
     yearSelect.value = now.getFullYear();
     
-    console.log('🔧 Configurando botões do HUD...');
-    
-    // Botão CARREGAR - CORRIGIDO
+    // Botão CARREGAR
     const loadBtn = document.getElementById('hudLoadBtn');
-if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
-    loadBtn.setAttribute('data-hud-configured', 'true');
-     loadBtn.onclick = async function() {
-        console.log('🔄 Botão Carregar do HUD clicado');
-        
-        const monthIndex = document.getElementById('hudMonth').value;
-        const year = document.getElementById('hudYear').value;
-        const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
-                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
+        loadBtn.setAttribute('data-hud-configured', 'true');
+        loadBtn.onclick = async function() {
+            const monthIndex = document.getElementById('hudMonth').value;
+            const year = document.getElementById('hudYear').value;
+            const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
         
         const selectedMonth = `${months[monthIndex]}-${year}`;
         const mesNumero = parseInt(monthIndex) + 1;
@@ -769,57 +716,40 @@ function removeRow(button) {
   }
 }
 
+// Cache de elementos DOM (otimização)
+const calcElements = {};
+
 // Calcular totais
 function calc() {
-  console.log('🧮 Calculando totais...');
-  
-  // ========== VERIFICAR SE ELEMENTOS EXISTEM ==========
-  const totalRendaEl = document.getElementById('totalRenda');
-  const totalDespesaEl = document.getElementById('totalDespesa');
-  const totalInvestEl = document.getElementById('totalInvest');
-  const saldoEl = document.getElementById('saldo');
-  
-  if (!totalRendaEl || !totalDespesaEl || !totalInvestEl || !saldoEl) {
-    console.log('⚠️ Elementos do dashboard não encontrados, pulando cálculo');
-    return;
+  // Cache de elementos (lazy load)
+  if (!calcElements.totalRenda) {
+    calcElements.totalRenda = document.getElementById('totalRenda');
+    calcElements.totalDespesa = document.getElementById('totalDespesa');
+    calcElements.totalInvest = document.getElementById('totalInvest');
+    calcElements.saldo = document.getElementById('saldo');
   }
   
-  // ========== 1. CALCULAR RENDAS ==========
-  const rendaInputs = document.querySelectorAll('#renda input[type="number"]');
-  let totalRenda = 0;
-  rendaInputs.forEach(input => {
-    totalRenda += parseFloat(input.value) || 0;
-  });
+  const { totalRenda: totalRendaEl, totalDespesa: totalDespesaEl, 
+          totalInvest: totalInvestEl, saldo: saldoEl } = calcElements;
   
-  // ========== 2. CALCULAR DESPESAS ==========
-  const despesaInputs = document.querySelectorAll('#despesa input[type="number"]');
-  let totalDespesa = 0;
-  despesaInputs.forEach(input => {
-    totalDespesa += parseFloat(input.value) || 0;
-  });
+  if (!totalRendaEl || !totalDespesaEl || !totalInvestEl || !saldoEl) return;
   
-  // ========== 3. CALCULAR INVESTIMENTOS ==========
-  const investRows = document.querySelectorAll('#invest tbody tr');
-  let totalInvest = 0;
+  // Cálculos otimizados com reduce
+  const totalRenda = Array.from(document.querySelectorAll('#renda input[type="number"]'))
+    .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
   
-  investRows.forEach(row => {
-    const aporteInput = row.querySelector('td:nth-child(2) input');
-    if (aporteInput) {
-      totalInvest += parseFloat(aporteInput.value) || 0;
-    }
-  });
+  const totalDespesa = Array.from(document.querySelectorAll('#despesa input[type="number"]'))
+    .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
   
-  // ========== 4. CALCULAR SALDO ==========
+  const totalInvest = Array.from(document.querySelectorAll('#invest tbody tr'))
+    .reduce((sum, row) => {
+      const aporteInput = row.querySelector('td:nth-child(2) input');
+      return sum + (aporteInput ? (parseFloat(aporteInput.value) || 0) : 0);
+    }, 0);
+  
   const saldoValor = totalRenda - totalDespesa - totalInvest;
   
-  console.log('📊 Totais calculados:', {
-    renda: totalRenda,
-    despesa: totalDespesa,
-    investimento: totalInvest,
-    saldo: saldoValor
-  });
-  
-  // ========== 5. ATUALIZAR DISPLAYS ==========
+  // Atualizar displays
   totalRendaEl.textContent = formatCurrency(totalRenda);
   totalDespesaEl.textContent = formatCurrency(totalDespesa);
   totalInvestEl.textContent = formatCurrency(totalInvest);
@@ -830,10 +760,9 @@ function calc() {
   // ========== 6. ATUALIZAR CONTAGENS ==========
   updateCounts();
   
-  // ========== 7. ATUALIZAR GRÁFICO ==========
+  // Atualizar gráfico
   if (typeof updateChart === 'function') {
     updateChart(totalRenda, totalDespesa, totalInvest, saldoValor);
-    console.log('📈 Gráfico atualizado');
   } else if (window.dashboardChart) {
     window.dashboardChart.data.datasets[0].data = [totalRenda, totalDespesa, totalInvest, saldoValor];
     window.dashboardChart.data.datasets[0].backgroundColor[3] = saldoValor >= 0 
@@ -845,27 +774,24 @@ function calc() {
     window.dashboardChart.update();
   }
   
-  // ========== 8. AUTO-SAVE ==========
+  // Auto-save (debounced)
   if (typeof dispararAutoSave === 'function') {
-    setTimeout(() => {
-      dispararAutoSave();
-    }, 100);
+    clearTimeout(window.autoSaveTimeout);
+    window.autoSaveTimeout = setTimeout(dispararAutoSave, 100);
   }
 }
 
-// Atualizar contagens
 function updateCounts() {
   const tables = ['renda', 'despesa', 'invest'];
   tables.forEach(tableId => {
-    const count = document.querySelectorAll(`#${tableId} tbody tr`).length;
     const countEl = document.getElementById(`${tableId}Count`);
     if (countEl) {
+      const count = document.querySelectorAll(`#${tableId} tbody tr`).length;
       countEl.textContent = `${count} ite${count === 1 ? 'm' : 'ns'}`;
     }
   });
 }
 
-// Formatar moeda
 function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -873,14 +799,8 @@ function formatCurrency(value) {
   }).format(value);
 }
 
-// ============================================
-// INTEGRAÇÃO COM SUPABASE - SIMPLIFICADA
-// ============================================
-
-// Função para carregar dados do Supabase
 async function loadFromCloud() {
     console.log('🔄 Carregando dados do Supabase...');
-    
     showToast('⏳ Carregando dados...', 'info');
     
     try {
@@ -918,10 +838,8 @@ async function loadFromCloud() {
     }
 }
 
-// Função para salvar dados no Supabase
 async function saveToCloud() {
     console.log('💾 Salvando dados no Supabase...');
-    
     showToast('⏳ Salvando dados...', 'info');
     
     try {
@@ -955,9 +873,7 @@ async function saveToCloud() {
     }
 }
 
-// Função para mostrar toast
 function showToast(message, type = 'info', duration = 3000) {
-    // Verificar se document.body e document.head existem
     if (!document.body || !document.head) {
         console.warn('⚠️ DOM não está pronto, showToast abortado:', message);
         return;
