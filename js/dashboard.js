@@ -108,18 +108,8 @@ function loadDashboardContent() {
     updateCounts();
     calc();
     
-    // Tentar carregar dados automaticamente se o supabase-data estiver disponível
-    setTimeout(async () => {
-      if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
-        console.log('📥 Tentando carregar dados automaticamente...');
-        try {
-          await window.supabaseData.load();
-        } catch (error) {
-          console.log('ℹ️ Nenhum dado salvo para carregar automaticamente');
-        }
-      }
-    }, 1000);
-    
+    // NÃO carregar aqui - deixar o updateDisplay() do HUD fazer isso
+    console.log('📥 Carregamento automático delegado ao HUD...');
   }, 100);
 }
 
@@ -320,21 +310,7 @@ function createPermanentMonthHUD() {
                 </div>
                 
                 <div style="display: flex; gap: 8px;">
-                    <button id="hudLoadBtn" style="
-                        padding: 6px 14px;
-                        background: #3b82f6;
-                        color: white;
-                        border: none;
-                        border-radius: 6px;
-                        font-size: 13px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        transition: all 0.2s;
-                    ">
-                        🔄 Carregar
-                    </button>
+
                     
                     
                 </div>
@@ -473,9 +449,9 @@ if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
             }, 1500);
         }
     };
-}
-    
-   function limparDashboard() {
+    }
+
+    function limparDashboard() {
     console.log('🧹 LIMPANDO DASHBOARD...');
     
     // Limpar todas as tabelas
@@ -610,9 +586,9 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
         monthEl.setAttribute('data-hud-configured', 'true');
         yearEl.setAttribute('data-hud-configured', 'true');
         
-        const updateDisplay = () => {
-            const monthIndex = monthEl.value;
-            const year = yearEl.value;
+        const updateDisplay = async () => {
+            const monthIndex = parseInt(monthEl.value);
+            const year = parseInt(yearEl.value);
             const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
             
@@ -623,6 +599,12 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
             if (pageTitle) {
                 const baseTitle = pageTitle.textContent.replace(/ - .*/, '');
                 pageTitle.textContent = `${baseTitle} - ${months[monthIndex]}/${year}`;
+            }
+            
+            // 🚀 CARREGAMENTO AUTOMÁTICO ao mudar período
+            console.log('🔄 Carregando dados automaticamente...');
+            if (window.carregarMes) {
+                await window.carregarMes(year, monthIndex + 1);
             }
         };
         
@@ -662,6 +644,7 @@ function initMonthHUD() {
 
 // Gerenciador de inicialização único
 let hudInitialized = false;
+let isAutoLoadingData = false; // Flag para evitar múltiplos carregamentos
 
 function initializeHUDSystem() {
     if (hudInitialized) {
@@ -678,6 +661,9 @@ function initializeHUDSystem() {
         // Aguardar um pouco para o dashboard carregar
         setTimeout(() => {
             initMonthHUD();
+            
+            // ❌ NÃO carregar automaticamente na inicialização
+            console.log('ℹ️ Dashboard pronto - troque o mês/ano ou clique em Carregar');
         }, 1500);
     });
     
@@ -700,6 +686,8 @@ function initializeHUDSystem() {
             // Recriar HUD após um delay
             setTimeout(() => {
                 initMonthHUD();
+                
+                // NÃO carregar automaticamente aqui (já vai carregar no updateDisplay)
             }, 1000);
         };
     }
@@ -709,6 +697,9 @@ function initializeHUDSystem() {
         console.log('⚡ DOM já pronto, inicializando HUD agora...');
         setTimeout(() => {
             initMonthHUD();
+            
+            // ❌ NÃO carregar automaticamente na inicialização
+            console.log('ℹ️ HUD pronto - troque o mês/ano ou clique em Carregar');
         }, 500);
     }
     
@@ -966,9 +957,9 @@ async function saveToCloud() {
 
 // Função para mostrar toast
 function showToast(message, type = 'info', duration = 3000) {
-    // Verificar se document.body existe
-    if (!document.body) {
-        console.warn('⚠️ document.body não encontrado, showToast abortado');
+    // Verificar se document.body e document.head existem
+    if (!document.body || !document.head) {
+        console.warn('⚠️ DOM não está pronto, showToast abortado:', message);
         return;
     }
     
@@ -1015,7 +1006,13 @@ function showToast(message, type = 'info', duration = 3000) {
         <span>${message}</span>
     `;
     
-    document.body.appendChild(toast);
+    // Verificação extra antes de adicionar
+    if (document.body) {
+        document.body.appendChild(toast);
+    } else {
+        console.warn('⚠️ document.body desapareceu, não foi possível mostrar toast');
+        return;
+    }
     
     // Adicionar estilo de animação
     if (!document.querySelector('#toast-animation')) {
@@ -1033,12 +1030,14 @@ function showToast(message, type = 'info', duration = 3000) {
                 }
             }
         `;
-        document.head.appendChild(style);
+        if (document.head) {
+            document.head.appendChild(style);
+        }
     }
     
     // Remover após duração
     setTimeout(() => {
-        if (toast.parentElement) {
+        if (toast && toast.parentElement) {
             toast.remove();
         }
     }, duration);

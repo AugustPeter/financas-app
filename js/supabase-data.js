@@ -233,6 +233,12 @@ function configurarAutoSave() {
  * Mostrar notificação discreta do auto-save
  */
 function mostrarNotificacaoAutoSave(mensagem) {
+    // Verificar se document.body existe
+    if (!document.body) {
+        console.warn('⚠️ document.body não existe, não foi possível mostrar notificação');
+        return;
+    }
+    
     // Verificar se já existe uma notificação
     let notificacao = document.getElementById('auto-save-notification');
     
@@ -633,6 +639,13 @@ async function salvarMesEspecifico(ano, mes) {
 function limparInterfaceDashboard() {
     console.log('🧹 LIMPANDO TODA A INTERFACE DO DASHBOARD...');
     
+    // Verificar se o dashboard existe antes de limpar
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) {
+        console.warn('⚠️ Dashboard não encontrado, não é possível limpar');
+        return;
+    }
+    
     // PAUSAR auto-save durante limpeza
     pausarAutoSave();
     
@@ -653,26 +666,26 @@ function limparInterfaceDashboard() {
         };
     }
     
-    // 1. Limpar todas as tabelas
+    // 1. Limpar todas as tabelas - MODO SEGURO (remove linhas, não innerHTML)
     const tabelasParaLimpar = [
         '#renda tbody',
-        '#rendaTable tbody', 
         '#despesa tbody',
-        '#despesaTable tbody',
-        '#invest tbody',
-        '#investmentTable tbody'
+        '#invest tbody'
     ];
     
     tabelasParaLimpar.forEach(seletor => {
         const tabela = document.querySelector(seletor);
         if (tabela) {
-            tabela.innerHTML = '';
+            // Remover linha por linha ao invés de innerHTML = ''
+            while (tabela.firstChild) {
+                tabela.removeChild(tabela.firstChild);
+            }
             console.log(`✅ Limpa: ${seletor}`);
         }
     });
     
     // 2. Limpar totais
-    const totaisParaZerar = ['totalRenda', 'totalDespesa', 'saldo'];
+    const totaisParaZerar = ['totalRenda', 'totalDespesa', 'saldo', 'totalInvest'];
     totaisParaZerar.forEach(id => {
         const elemento = document.getElementById(id);
         if (elemento) {
@@ -689,42 +702,30 @@ function limparInterfaceDashboard() {
         if (typeof originalCalc === 'function') {
             window.calc = originalCalc;
             
-            // Adicionar uma linha vazia em cada tabela (se a função existir)
+            // Adicionar uma linha vazia em cada tabela
             if (typeof window.addRow === 'function') {
                 try {
-                    // Adicionar linha vazia de renda
                     window.addRow('renda', '', 0);
-                    
-                    // Adicionar linha vazia de despesa  
                     window.addRow('despesa', '', 0);
                 } catch (e) {
-                    console.log('ℹ️ Função addRow não disponível ou erro:', e.message);
+                    console.log('ℹ️ Erro ao adicionar linhas vazias:', e.message);
                 }
             }
             
             // Adicionar linha vazia de investimento
-            const investTableBody = document.querySelector('#investmentTable tbody') || 
-                                   document.querySelector('#invest tbody');
-            
-            if (investTableBody && investTableBody.innerHTML === '') {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><input class="table-input" placeholder="Nome do investimento"></td>
-                    <td><input class="table-input" type="number" placeholder="Aporte" step="0.01"></td>
-                    <td><input class="table-input" type="number" placeholder="Meta" step="0.01"></td>
-                    <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
-                `;
-                investTableBody.appendChild(row);
-                
-                // Adicionar eventos oninput
-                row.querySelectorAll('.table-input').forEach(input => {
-                    input.setAttribute('oninput', 'calc()');
-                });
+            if (typeof window.addInvest === 'function') {
+                try {
+                    window.addInvest('', 0, 0);
+                } catch (e) {
+                    console.log('ℹ️ Erro ao adicionar investimento vazio:', e.message);
+                }
             }
             
             // Executar calc() para atualizar tudo
             console.log('🧮 Executando calc() após limpeza...');
-            originalCalc();
+            if (typeof window.calc === 'function') {
+                window.calc();
+            }
         }
         
         // RETOMAR auto-save após limpeza
@@ -841,6 +842,24 @@ function applyDashboardData(data) {
     
     if (!data) {
         console.log('ℹ️ Nenhum dado para aplicar');
+        return;
+    }
+    
+    // Verificar se o dashboard existe
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) {
+        console.warn('⚠️ Dashboard não encontrado, não é possível aplicar dados');
+        console.warn('⚠️ Aguardando dashboard estar pronto...');
+        
+        // Tentar novamente após 500ms
+        setTimeout(() => {
+            if (document.getElementById('dashboardContent')) {
+                console.log('✅ Dashboard pronto, aplicando dados agora...');
+                applyDashboardData(data);
+            } else {
+                console.error('❌ Dashboard ainda não está pronto após espera');
+            }
+        }, 500);
         return;
     }
     
@@ -1166,9 +1185,6 @@ function criarHUDAnoMes() {
     });
     
     btnCarregar.addEventListener('click', async function() {
-        // Perguntar se quer salvar alterações não salvas
-        
-        
         const originalHTML = this.innerHTML;
         this.disabled = true;
         this.innerHTML = '📥 Carregando...';
@@ -1270,6 +1286,12 @@ function atualizarHUDAnoMes() {
 function showError(message) {
     console.error('🚨 ERRO:', message);
     
+    // Verificar se document.body existe
+    if (!document.body) {
+        console.warn('⚠️ document.body não existe, não foi possível mostrar erro');
+        return;
+    }
+    
     let errorDiv = document.getElementById('supabase-error');
     
     if (!errorDiv) {
@@ -1307,6 +1329,12 @@ function showError(message) {
 }
 
 function showSuccess(message) {
+    // Verificar se document.body existe
+    if (!document.body) {
+        console.warn('⚠️ document.body não existe, não foi possível mostrar sucesso');
+        return;
+    }
+    
     const successDiv = document.createElement('div');
     successDiv.style.cssText = `
         position: fixed;
@@ -1327,10 +1355,20 @@ function showSuccess(message) {
     `;
     document.body.appendChild(successDiv);
     
-    setTimeout(() => successDiv.remove(), 3000);
+    setTimeout(() => {
+        if (successDiv && successDiv.parentElement) {
+            successDiv.remove();
+        }
+    }, 3000);
 }
 
 function showInfo(message) {
+    // Verificar se document.body existe
+    if (!document.body) {
+        console.warn('⚠️ document.body não existe, não foi possível mostrar info');
+        return;
+    }
+    
     const infoDiv = document.createElement('div');
     infoDiv.style.cssText = `
         position: fixed;
