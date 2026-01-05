@@ -1,6 +1,6 @@
 // js/dashboard.js - VERSÃO CORRIGIDA COM SUPABASE-DATA.JS
 console.log('📊 dashboard.js carregado');
-
+  let isSaving = false;
 // Função principal que será chamada pelo app.js
 function loadDashboardContent() {
   console.log('🎯 Criando conteúdo do dashboard...');
@@ -390,201 +390,217 @@ function setupHUDfunctionality() {
     
     // Botão CARREGAR - CORRIGIDO
     const loadBtn = document.getElementById('hudLoadBtn');
-    if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
-        loadBtn.setAttribute('data-hud-configured', 'true');
-        loadBtn.onclick = async function() {
-            console.log('🔄 Botão Carregar do HUD clicado');
+if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
+    loadBtn.setAttribute('data-hud-configured', 'true');
+     loadBtn.onclick = async function() {
+        console.log('🔄 Botão Carregar do HUD clicado');
+        
+        const monthIndex = document.getElementById('hudMonth').value;
+        const year = document.getElementById('hudYear').value;
+        const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+        
+        const selectedMonth = `${months[monthIndex]}-${year}`;
+        const mesNumero = parseInt(monthIndex) + 1;
+        
+        console.log(`📥 Carregando dados de ${selectedMonth}...`);
+        
+        // Animação
+        const originalText = this.innerHTML;
+        const originalBg = this.style.background;
+        this.innerHTML = '⏳';
+        this.disabled = true;
+        
+        try {
+            let result;
             
-            const monthIndex = document.getElementById('hudMonth').value;
-            const year = document.getElementById('hudYear').value;
-            const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
-                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+            if (typeof carregarMesEspecifico === 'function') {
+                console.log('📥 Usando carregarMesEspecifico()');
+                result = await carregarMesEspecifico(parseInt(year), mesNumero);
+            }
+            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.carregarMes) {
+                console.log('📥 Usando window.supabaseData.carregarMes()');
+                result = await window.supabaseData.carregarMes(parseInt(year), mesNumero);
+            }
+            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
+                console.log('📥 Usando window.supabaseData.load()');
+                window.supabaseData.setPeriodo(parseInt(year), mesNumero);
+                result = await window.supabaseData.load();
+            }
+            else {
+                throw new Error('Sistema de carregamento não disponível');
+            }
             
-            const selectedMonth = `${months[monthIndex]}-${year}`;
-            const mesNumero = parseInt(monthIndex) + 1; // Converter para 1-12
+            // 🔑 AGUARDAR 2 SEGUNDOS ANTES DE MOSTRAR TOAST (DOM precisa reconstruir)
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
-            console.log(`📥 Carregando dados de ${selectedMonth} (mês ${mesNumero}/${year})...`);
-            
-            // Animação
-            const originalText = this.innerHTML;
-            const originalBg = this.style.background;
-            this.innerHTML = '⏳';
-            this.disabled = true;
-            
-            try {
-                let result;
-                
-                // PRIMEIRA OPÇÃO: Usar carregarMesEspecifico do supabase-data.js
-                if (typeof carregarMesEspecifico === 'function') {
-                    console.log('📥 Usando carregarMesEspecifico()');
-                    result = await carregarMesEspecifico(parseInt(year), mesNumero);
-                }
-                // SEGUNDA OPÇÃO: Usar a função do window.supabaseData
-                else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.carregarMes) {
-                    console.log('📥 Usando window.supabaseData.carregarMes()');
-                    result = await window.supabaseData.carregarMes(parseInt(year), mesNumero);
-                }
-                // TERCEIRA OPÇÃO: Usar load do supabaseData
-                else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
-                    console.log('📥 Usando window.supabaseData.load()');
-                    // Primeiro configurar o período
-                    window.supabaseData.setPeriodo(parseInt(year), mesNumero);
-                    result = await window.supabaseData.load();
-                }
-                else {
-                    throw new Error('Sistema de carregamento não disponível');
-                }
-                
-                if (result && result.success) {
-                    if (result.empty) {
-                        // MÊS SEM DADOS - LIMPA A TELA
-                        limparDashboard();
-                        this.innerHTML = '📭';
-                        this.style.background = '#f59e0b';
-                        showToast(`📭 ${selectedMonth} - Mês sem dados (tela limpa)`, 'info');
-                    } else {
-                        this.innerHTML = '✅';
-                        this.style.background = '#059669';
-                        showToast(`Dados de ${selectedMonth} carregados!`, 'success');
-                    }
-                } else {
-                    // SE NÃO TEVE SUCESSO, LIMPA A TELA
+            if (result && result.success) {
+                if (result.empty) {
                     limparDashboard();
-                    throw new Error(result ? result.error : 'Nenhum dado encontrado');
-                }
-            } catch (error) {
-                console.error('Erro ao carregar:', error);
-                
-                // SEMPRE LIMPA A TELA EM CASO DE ERRO OU SEM DADOS
-                limparDashboard();
-                
-                this.innerHTML = '📭';
-                this.style.background = '#f59e0b';
-                
-                // Mostra mensagem mais amigável
-                if (error.message.includes('Nenhum dado') || error.message.includes('nenhum dado')) {
-                    showToast(`📭 ${selectedMonth} - Mês sem dados salvos`, 'info');
+                    this.innerHTML = '📭';
+                    this.style.background = '#f59e0b';
+                    showToast(`📭 ${selectedMonth} - Mês sem dados`, 'info');
                 } else {
-                    showToast(`Erro: ${error.message}`, 'warning');
-                }
-            }
-            
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.style.background = originalBg;
-                this.disabled = false;
-            }, 1500);
-        };
-    }
-    
-    function limparDashboard() {
-        console.log('🧹 LIMPANDO DASHBOARD...');
-        
-        // Limpar todas as tabelas
-        ['renda', 'despesa', 'invest'].forEach(tipo => {
-            const tbody = document.querySelector(`#${tipo} tbody`);
-            if (tbody) {
-                tbody.innerHTML = '';
-            }
-        });
-        
-        // Zerar totais
-        document.getElementById('totalRenda').textContent = 'R$ 0,00';
-        document.getElementById('totalDespesa').textContent = 'R$ 0,00';
-        document.getElementById('totalInvest').textContent = 'R$ 0,00';
-        document.getElementById('saldo').textContent = 'R$ 0,00';
-        
-        // Atualizar contagens
-        updateCounts();
-        
-        // Adicionar uma linha vazia em cada tabela
-        setTimeout(() => {
-            addRow('renda', '', 0);
-            addRow('despesa', '', 0);
-            addInvest('', 0, 0);
-            
-            // Atualizar gráfico
-            if (typeof updateChart === 'function') {
-                updateChart(0, 0, 0, 0);
-            } else if (window.dashboardChart) {
-                createAlternativeChart(0, 0, 0, 0);
-            }
-            
-            console.log('✅ Dashboard limpo');
-        }, 100);
-    }
-    
-    window.limparDashboard = limparDashboard;
-    
-    // Botão SALVAR - CORRIGIDO
-    const saveBtn = document.getElementById('hudSaveBtn');
-    if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
-        saveBtn.setAttribute('data-hud-configured', 'true');
-        saveBtn.onclick = async function() {
-            console.log('💾 Botão Salvar clicado');
-            
-            const monthIndex = document.getElementById('hudMonth').value;
-            const year = document.getElementById('hudYear').value;
-            const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
-                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-            
-            const selectedMonth = `${months[monthIndex]}-${year}`;
-            const mesNumero = parseInt(monthIndex) + 1; // Converter para 1-12
-            
-            console.log(`💾 Salvando dados em ${selectedMonth} (mês ${mesNumero}/${year})...`);
-            
-            // Animação
-            const originalText = this.innerHTML;
-            const originalBg = this.style.background;
-            this.innerHTML = '💾';
-            this.disabled = true;
-            
-            try {
-                let result;
-                
-                // PRIMEIRA OPÇÃO: Usar salvarMesEspecifico do supabase-data.js
-                if (typeof salvarMesEspecifico === 'function') {
-                    console.log('💾 Usando salvarMesEspecifico()');
-                    result = await salvarMesEspecifico(parseInt(year), mesNumero);
-                }
-                // SEGUNDA OPÇÃO: Usar a função do window.supabaseData
-                else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.salvarMes) {
-                    console.log('💾 Usando window.supabaseData.salvarMes()');
-                    result = await window.supabaseData.salvarMes(parseInt(year), mesNumero);
-                }
-                // TERCEIRA OPÇÃO: Usar save do supabaseData
-                else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.save) {
-                    console.log('💾 Usando window.supabaseData.save()');
-                    // Primeiro configurar o período
-                    window.supabaseData.setPeriodo(parseInt(year), mesNumero);
-                    result = await window.supabaseData.save();
-                }
-                else {
-                    throw new Error('Sistema de salvamento não disponível');
-                }
-                
-                if (result && result.success) {
                     this.innerHTML = '✅';
                     this.style.background = '#059669';
-                    showToast(`Dados salvos em ${selectedMonth}!`, 'success');
-                } else {
-                    throw new Error(result ? result.error : 'Erro ao salvar');
+                    showToast(`Dados de ${selectedMonth} carregados!`, 'success');
                 }
-                
-            } catch (error) {
-                console.error('Erro ao salvar:', error);
-                this.innerHTML = '❌';
-                this.style.background = '#dc2626';
-                showToast(`Erro ao salvar: ${error.message}`, 'error');
+            } else {
+                limparDashboard();
+                throw new Error(result ? result.error : 'Nenhum dado encontrado');
             }
+        } catch (error) {
+            console.error('Erro ao carregar:', error);
+            limparDashboard();
             
+            this.innerHTML = '📭';
+            this.style.background = '#f59e0b';
+            
+            // 🔑 TAMBÉM AGUARDAR AQUI
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (error.message.includes('Nenhum dado') || error.message.includes('nenhum dado')) {
+                showToast(`📭 ${selectedMonth} - Mês sem dados salvos`, 'info');
+            } else {
+                showToast(`Erro: ${error.message}`, 'warning');
+            }
+        }
+        finally {
             setTimeout(() => {
                 this.innerHTML = originalText;
                 this.style.background = originalBg;
                 this.disabled = false;
             }, 1500);
-        };
-    }
+        }
+    };
+}
+    
+   function limparDashboard() {
+    console.log('🧹 LIMPANDO DASHBOARD...');
+    
+    // Limpar todas as tabelas
+    ['renda', 'despesa', 'invest'].forEach(tipo => {
+        const tbody = document.querySelector(`#${tipo} tbody`);
+        if (tbody) {
+            tbody.innerHTML = '';
+        }
+    });
+    
+    // Zerar totais - COM VERIFICAÇÃO
+    const totalRendaEl = document.getElementById('totalRenda');
+    const totalDespesaEl = document.getElementById('totalDespesa');
+    const totalInvestEl = document.getElementById('totalInvest');
+    const saldoEl = document.getElementById('saldo');
+    
+    if (totalRendaEl) totalRendaEl.textContent = 'R$ 0,00';
+    if (totalDespesaEl) totalDespesaEl.textContent = 'R$ 0,00';
+    if (totalInvestEl) totalInvestEl.textContent = 'R$ 0,00';
+    if (saldoEl) saldoEl.textContent = 'R$ 0,00';
+    
+    // Atualizar contagens
+    updateCounts();
+    
+    // Adicionar uma linha vazia em cada tabela
+    setTimeout(() => {
+        addRow('renda', '', 0);
+        addRow('despesa', '', 0);
+        addInvest('', 0, 0);
+        
+        // Atualizar gráfico
+        if (typeof updateChart === 'function') {
+            updateChart(0, 0, 0, 0);
+        } else if (window.dashboardChart) {
+            createAlternativeChart(0, 0, 0, 0);
+        }
+        
+        console.log('✅ Dashboard limpo');
+    }, 100);
+}
+    
+    window.limparDashboard = limparDashboard;
+  
+
+    const saveBtn = document.getElementById('hudSaveBtn');
+if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
+    saveBtn.setAttribute('data-hud-configured', 'true');
+    saveBtn.onclick = async function(e) {
+        // 🛑 BLOQUEAR MÚLTIPLOS CLIQUES
+        if (isSaving) {
+            console.log('⚠️ Salvamento já em andamento, ignorando novo clique');
+            console.log(`⏳ Aguarde ${Math.ceil((lastSaveTime + 3500 - Date.now()) / 1000)}s`);
+            return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        isSaving = true;
+        const lastSaveTime = Date.now();
+        
+        console.log('💾 Botão Salvar clicado');
+        
+        const monthIndex = document.getElementById('hudMonth').value;
+        const year = document.getElementById('hudYear').value;
+        const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+        
+        const selectedMonth = `${months[monthIndex]}-${year}`;
+        const mesNumero = parseInt(monthIndex) + 1;
+        
+        console.log(`💾 Salvando dados em ${selectedMonth} (mês ${mesNumero}/${year})...`);
+        
+        // Animação
+        const originalText = this.innerHTML;
+        const originalBg = this.style.background;
+        this.innerHTML = '⏳ Salvando...';
+        this.style.background = '#f59e0b';
+        this.disabled = true;
+        
+        try {
+            let result;
+            
+            if (typeof salvarMesEspecifico === 'function') {
+                console.log('💾 Usando salvarMesEspecifico()');
+                result = await salvarMesEspecifico(parseInt(year), mesNumero);
+            }
+            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.salvarMes) {
+                console.log('💾 Usando window.supabaseData.salvarMes()');
+                result = await window.supabaseData.salvarMes(parseInt(year), mesNumero);
+            }
+            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.save) {
+                console.log('💾 Usando window.supabaseData.save()');
+                window.supabaseData.setPeriodo(parseInt(year), mesNumero);
+                result = await window.supabaseData.save();
+            }
+            else {
+                throw new Error('Sistema de salvamento não disponível');
+            }
+            
+            if (result && result.success) {
+                this.innerHTML = '✅ Salvo!';
+                this.style.background = '#059669';
+                showToast(`Dados salvos em ${selectedMonth}!`, 'success');
+            } else {
+                throw new Error(result ? result.error : 'Erro ao salvar');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao salvar:', error);
+            this.innerHTML = '❌ Erro!';
+            this.style.background = '#dc2626';
+            showToast(`Erro ao salvar: ${error.message}`, 'error');
+        }
+        finally {
+            // 🔓 LIBERAR O BLOQUEIO APÓS 3.5 SEGUNDOS (TEMPO SUFICIENTE)
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.style.background = originalBg;
+                this.disabled = false;
+                isSaving = false;  // ← LIBERADO AQUI
+                console.log('✅ Botão Salvar liberado para novo salvamento');
+            }, 3500);  // ← AUMENTADO PARA 3.5 SEGUNDOS
+        }
+    };
+}
     
     // Quando mudar mês/ano
     const monthEl = document.getElementById('hudMonth');
@@ -766,6 +782,17 @@ function removeRow(button) {
 function calc() {
   console.log('🧮 Calculando totais...');
   
+  // ========== VERIFICAR SE ELEMENTOS EXISTEM ==========
+  const totalRendaEl = document.getElementById('totalRenda');
+  const totalDespesaEl = document.getElementById('totalDespesa');
+  const totalInvestEl = document.getElementById('totalInvest');
+  const saldoEl = document.getElementById('saldo');
+  
+  if (!totalRendaEl || !totalDespesaEl || !totalInvestEl || !saldoEl) {
+    console.log('⚠️ Elementos do dashboard não encontrados, pulando cálculo');
+    return;
+  }
+  
   // ========== 1. CALCULAR RENDAS ==========
   const rendaInputs = document.querySelectorAll('#renda input[type="number"]');
   let totalRenda = 0;
@@ -780,19 +807,18 @@ function calc() {
     totalDespesa += parseFloat(input.value) || 0;
   });
   
-  // ========== 3. CALCULAR INVESTIMENTOS (CORRIGIDO) ==========
+  // ========== 3. CALCULAR INVESTIMENTOS ==========
   const investRows = document.querySelectorAll('#invest tbody tr');
   let totalInvest = 0;
   
   investRows.forEach(row => {
-    // Pegar o input de APORTE (segunda coluna - index 1)
     const aporteInput = row.querySelector('td:nth-child(2) input');
     if (aporteInput) {
       totalInvest += parseFloat(aporteInput.value) || 0;
     }
   });
   
-  // ========== 4. CALCULAR SALDO (CORRIGIDO - SUBTRAI INVESTIMENTOS) ==========
+  // ========== 4. CALCULAR SALDO ==========
   const saldoValor = totalRenda - totalDespesa - totalInvest;
   
   console.log('📊 Totais calculados:', {
@@ -803,23 +829,20 @@ function calc() {
   });
   
   // ========== 5. ATUALIZAR DISPLAYS ==========
-  document.getElementById('totalRenda').textContent = formatCurrency(totalRenda);
-  document.getElementById('totalDespesa').textContent = formatCurrency(totalDespesa);
-  document.getElementById('totalInvest').textContent = formatCurrency(totalInvest);
+  totalRendaEl.textContent = formatCurrency(totalRenda);
+  totalDespesaEl.textContent = formatCurrency(totalDespesa);
+  totalInvestEl.textContent = formatCurrency(totalInvest);
   
-  const saldoEl = document.getElementById('saldo');
-  if (saldoEl) {
-    saldoEl.textContent = formatCurrency(saldoValor);
-    saldoEl.className = saldoValor >= 0 ? 'positive' : 'negative';
-  }
+  saldoEl.textContent = formatCurrency(saldoValor);
+  saldoEl.className = saldoValor >= 0 ? 'positive' : 'negative';
   
   // ========== 6. ATUALIZAR CONTAGENS ==========
   updateCounts();
   
-  // ========== 7. ATUALIZAR GRÁFICO (CORRIGIDO) ==========
+  // ========== 7. ATUALIZAR GRÁFICO ==========
   if (typeof updateChart === 'function') {
     updateChart(totalRenda, totalDespesa, totalInvest, saldoValor);
-    console.log('📈 Gráfico atualizado com valores:', [totalRenda, totalDespesa, totalInvest, saldoValor]);
+    console.log('📈 Gráfico atualizado');
   } else if (window.dashboardChart) {
     window.dashboardChart.data.datasets[0].data = [totalRenda, totalDespesa, totalInvest, saldoValor];
     window.dashboardChart.data.datasets[0].backgroundColor[3] = saldoValor >= 0 
@@ -831,7 +854,7 @@ function calc() {
     window.dashboardChart.update();
   }
   
-  // ========== 8. AUTO-SAVE SE DISPONÍVEL ==========
+  // ========== 8. AUTO-SAVE ==========
   if (typeof dispararAutoSave === 'function') {
     setTimeout(() => {
       dispararAutoSave();
@@ -943,6 +966,12 @@ async function saveToCloud() {
 
 // Função para mostrar toast
 function showToast(message, type = 'info', duration = 3000) {
+    // Verificar se document.body existe
+    if (!document.body) {
+        console.warn('⚠️ document.body não encontrado, showToast abortado');
+        return;
+    }
+    
     // Remover toasts antigos
     const oldToasts = document.querySelectorAll('.toast-message');
     oldToasts.forEach(toast => {
@@ -1046,11 +1075,16 @@ window.limparDashboard = function() {
         }
     });
     
-    // Zerar totais
-    document.getElementById('totalRenda').textContent = 'R$ 0,00';
-    document.getElementById('totalDespesa').textContent = 'R$ 0,00';
-    document.getElementById('totalInvest').textContent = 'R$ 0,00';
-    document.getElementById('saldo').textContent = 'R$ 0,00';
+    // Zerar totais - COM VERIFICAÇÃO
+    const totalRendaEl = document.getElementById('totalRenda');
+    const totalDespesaEl = document.getElementById('totalDespesa');
+    const totalInvestEl = document.getElementById('totalInvest');
+    const saldoEl = document.getElementById('saldo');
+    
+    if (totalRendaEl) totalRendaEl.textContent = 'R$ 0,00';
+    if (totalDespesaEl) totalDespesaEl.textContent = 'R$ 0,00';
+    if (totalInvestEl) totalInvestEl.textContent = 'R$ 0,00';
+    if (saldoEl) saldoEl.textContent = 'R$ 0,00';
     
     // Adicionar linhas vazias
     setTimeout(() => {

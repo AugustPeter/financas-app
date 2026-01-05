@@ -332,14 +332,21 @@ function retomarAutoSave() {
 /**
  * SALVAR dados no Supabase - CORRIGIDO: SEM onConflict
  */
+let isSavingToSupabase = false;
+
 async function saveDashboardToSupabase(forcar = false) {
     console.log('💾 Salvando NO SUPABASE...', forcar ? '(FORÇADO)' : '');
     
-    // Cancelar auto-save pendente se estiver salvando manualmente
-    if (forcar && autoSaveTimeout) {
-        clearTimeout(autoSaveTimeout);
-        autoSaveTimeout = null;
+    // 🛑 BLOQUEAR MÚLTIPLOS SALVAMENTOS SIMULTÂNEOS
+    if (isSavingToSupabase) {
+        console.log('⚠️ Salvamento já em andamento, ignorando novo pedido');
+        return { 
+            success: false, 
+            error: 'Salvamento já em andamento. Aguarde...' 
+        };
     }
+    
+    isSavingToSupabase = true;
     
     const supabase = getSupabase();
     
@@ -458,6 +465,12 @@ async function saveDashboardToSupabase(forcar = false) {
             success: false, 
             error: error.message 
         };
+    } finally {
+        // 🔓 SEMPRE RESETAR A FLAG APÓS TERMINAR
+        setTimeout(() => {
+            isSavingToSupabase = false;
+            console.log('✅ Flag isSavingToSupabase resetada');
+        }, 500);
     }
 }
 
@@ -579,11 +592,9 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
 async function carregarMesEspecifico(ano, mes) {
     console.log(`📅 Carregando mês específico: ${mes}/${ano}`);
     
-    // Verificar se há alterações não salvas no mês atual
+    // ✅ REMOVIDO O CONFIRM() QUE CAUSAVA O PROBLEMA
     if (alteracoesNaoSalvas) {
-        if (confirm(`Há alterações não salvas no mês atual. Deseja salvar antes de carregar ${mes}/${ano}?`)) {
-            await saveDashboardToSupabase(true);
-        }
+        console.log('⚠️ Há alterações não salvas no mês anterior');
     }
     
     // Atualizar variáveis globais

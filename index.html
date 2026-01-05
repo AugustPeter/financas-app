@@ -1,46 +1,42 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0b1220" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
   <title>Finanças App</title>
   
-  <!-- CSS -->
+  <!-- CSS Files -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tabs.css">
   <link rel="stylesheet" href="styles/responsive.css">
-  
-  <!-- Fontes -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- APENAS UM CONTAINER VAZIO - TUDO SERÁ CRIADO POR JS -->
+  <!-- Container vazio - será preenchido por auth.js ou app.js -->
   <div id="app"></div>
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <!-- Configuração Supabase INLINE -->
+  <!-- Configuração Supabase -->
   <script>
-    // SUAS CREDENCIAIS AQUI ⬇️
     const SUPABASE_URL = 'https://htixncglyuabopewnwpg.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aXhuY2dseXVhYm9wZXdud3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyMjcsImV4cCI6MjA4Mjk0ODIyN30.DuCO2Cv7j9vYBGyNMCWEtagAVrKv9uCTJoNXA1jMCa0';
     
-    if (typeof supabase !== 'undefined') {
-      window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      console.log('✅ Supabase configurado');
-    }
+    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('✅ Supabase configurado');
   </script>
   
-  <!-- Seus scripts -->
- <script src="js/auth.js" defer></script>
-<script src="js/app.js" defer></script>
-<script src="js/supabase-data.js" defer></script>  NOVO!
-<script src="js/charts.js" defer></script>
-<script src="js/dashboard.js" defer></script>
-<script src="js/tabs.js" defer></script>
-  <!-- Outros scripts se necessário -->
+  <!-- Carregar auth.js PRIMEIRO -->
+  <script src="js/auth.js" defer></script>
+  <!-- Depois app.js -->
+  <script src="js/app.js" defer></script>
+  <!-- Depois os outros -->
+   
+  <script src="js/supabase-data.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
 </body>
 </html>
