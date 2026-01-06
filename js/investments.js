@@ -205,10 +205,20 @@ function addContribution(index) {
 
 // Executar simulação de investimento
 function runSimulation() {
-  const initial = parseFloat(document.getElementById('simInitial').value) || 0;
-  const monthly = parseFloat(document.getElementById('simMonthly').value) || 0;
-  const rate = parseFloat(document.getElementById('simRate').value) || 0;
-  const years = parseFloat(document.getElementById('simYears').value) || 0;
+  const initialEl = document.getElementById('simInitial');
+  const monthlyEl = document.getElementById('simMonthly');
+  const rateEl = document.getElementById('simRate');
+  const yearsEl = document.getElementById('simYears');
+  
+  if (!initialEl || !monthlyEl || !rateEl || !yearsEl) {
+    console.error('❌ Elementos do simulador não encontrados');
+    return;
+  }
+  
+  const initial = parseFloat(initialEl.value) || 0;
+  const monthly = parseFloat(monthlyEl.value) || 0;
+  const rate = parseFloat(rateEl.value) || 0;
+  const years = parseFloat(yearsEl.value) || 0;
   
   const monthlyRate = Math.pow(1 + rate/100, 1/12) - 1;
   let total = initial;

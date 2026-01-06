@@ -65,13 +65,6 @@
           <div id="reportsContent" class="tab-content"></div>
         </div>
 
-        <nav class="bottom-nav">
-          <button class="nav-item active" data-tab="dashboard"><span>📊</span><small>Dashboard</small></button>
-          <button class="nav-item" data-tab="transactions"><span>💸</span><small>Transações</small></button>
-          <button class="nav-item" data-tab="investments"><span>📈</span><small>Investir</small></button>
-          <button class="nav-item" data-tab="reports"><span>📋</span><small>Relatórios</small></button>
-        </nav>
-
         <div id="toast" class="toast" aria-live="polite"></div>
       </div>
     `.trim();
@@ -217,5 +210,44 @@
 
     // Chamar loadDashboard mas sem forçar se auth.js vai controlar a exibição
     loadDashboard();
+    
+    // Mobile optimizations
+    initializeMobileOptimizations();
   });
+  
+  // Otimizações para mobile
+  function initializeMobileOptimizations() {
+    // Detectar scroll em tabelas e remover indicador
+    document.addEventListener('scroll', (e) => {
+      if (e.target.classList && e.target.classList.contains('table-container')) {
+        if (e.target.scrollLeft > 10) {
+          e.target.classList.add('scrolled');
+        } else {
+          e.target.classList.remove('scrolled');
+        }
+      }
+    }, true);
+    
+    // Prevenir zoom duplo-toque no iOS
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+    
+    // Adicionar classe para detectar se é touch device
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      if (document.body) {
+        document.body.classList.add('touch-device');
+      }
+    }
+    
+    // Melhorar performance de scroll
+    if (document.body && CSS.supports('overscroll-behavior', 'contain')) {
+      document.body.style.overscrollBehavior = 'contain';
+    }
+  }
 })();

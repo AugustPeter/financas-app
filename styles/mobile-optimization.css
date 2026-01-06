@@ -1,0 +1,328 @@
+/* ==========================================
+   MOBILE OPTIMIZATION CSS
+   Melhorias específicas para performance mobile
+   ========================================== */
+
+/* Performance: Hardware acceleration para elementos animados */
+.btn,
+.tab,
+.nav-item,
+.summary-card,
+.content-card,
+.transaction-item {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Performance: Remover will-change após animação */
+.btn:not(:hover):not(:active),
+.tab:not(:hover):not(:active),
+.nav-item:not(:active) {
+  will-change: auto;
+}
+
+/* Touch feedback melhorado */
+@media (hover: none) and (pointer: coarse) {
+  /* Tamanho mínimo de toque (44x44px) */
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  .btn,
+  .tab,
+  .nav-item,
+  .btn-icon {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Feedback visual instantâneo */
+  button:active,
+  .btn:active,
+  .tab:active,
+  .nav-item:active {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+  
+  /* Desabilitar hover effects em touch */
+  *:hover {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Otimização de scroll */
+.table-container,
+.transactions-list,
+.container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Prevenir seleção acidental de texto */
+.btn,
+.tab,
+.nav-item,
+button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Otimizar renderização de fontes no mobile */
+@media (max-width: 768px) {
+  body {
+    text-rendering: optimizeSpeed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Reduzir motion para usuários que preferem */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Modo escuro forçado (se preferência do sistema) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Ajustes para telas OLED (economizar bateria) */
+@media (prefers-contrast: high) {
+  :root {
+    --bg: #000000;
+    --card: #0a0a0a;
+  }
+}
+
+/* Otimização de imagens e vídeos */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Lazy loading nativo */
+img[loading="lazy"] {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+img[loading="lazy"].loaded {
+  opacity: 1;
+}
+
+/* Otimizar select em mobile */
+@media (max-width: 768px) {
+  select {
+    font-size: 16px !important; /* Previne zoom no iOS */
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+  }
+}
+
+/* Melhorar performance de backdrop-filter */
+.app-header,
+.bottom-nav {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  isolation: isolate;
+}
+
+/* GPU acceleration para elementos fixos */
+.app-header,
+.bottom-nav,
+.toast {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Otimizar inputs para mobile */
+input,
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 10px;
+}
+
+/* Remover delay de 300ms no tap em alguns navegadores antigos */
+a,
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* Pull to refresh - prevenir comportamento indesejado */
+body {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Otimizar checkbox e radio */
+input[type="checkbox"],
+input[type="radio"] {
+  transform: scale(1.2);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Melhorar contraste em telas de baixa qualidade */
+@media (max-resolution: 150dpi) {
+  body {
+    font-weight: 400;
+  }
+  
+  .btn,
+  .tab,
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+  }
+}
+
+/* Orientation change handling */
+@media (orientation: portrait) {
+  .landscape-only {
+    display: none !important;
+  }
+}
+
+@media (orientation: landscape) {
+  .portrait-only {
+    display: none !important;
+  }
+}
+
+/* Focus visible para acessibilidade */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Remover outline padrão mas manter acessibilidade */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Loading states para melhor UX */
+.loading {
+  pointer-events: none;
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid var(--primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton loading para melhor perceived performance */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--border) 25%,
+    var(--border-light) 50%,
+    var(--border) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Safe area insets para dispositivos com notch */
+@supports (padding: max(0px)) {
+  .app-header {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .bottom-nav {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  
+  .container {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+  
+  @media (max-width: 480px) {
+    .container {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+  }
+  
+  @media (max-width: 360px) {
+    .container {
+      padding-left: max(0.875rem, env(safe-area-inset-left));
+      padding-right: max(0.875rem, env(safe-area-inset-right));
+    }
+  }
+}

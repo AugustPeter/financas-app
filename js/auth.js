@@ -323,6 +323,16 @@ function createLogoutButton() {
         if (confirm('Deseja realmente sair da conta?')) {
             logoutBtn.disabled = true;
             logoutBtn.innerHTML = 'Saindo...';
+            
+            // Limpar recursos antes do logout
+            if (typeof window.limparRecursos === 'function') {
+                try {
+                    window.limparRecursos();
+                } catch (err) {
+                    console.error('⚠️ Erro ao limpar recursos:', err);
+                }
+            }
+            
             const result = await signOut();
             if (result.success) {
                 showLoginScreen();

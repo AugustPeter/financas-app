@@ -119,38 +119,50 @@ function configurarAutoSave() {
     
     // Monitorar TODOS os inputs financeiros
     function monitorarInputs() {
-        // Selecionar todos os inputs relevantes
-        const inputs = document.querySelectorAll(
-            '#renda input, #despesa input, #invest input, ' +
-            '.table-input, input[type="number"], ' +
-            'input[placeholder*="Descrição"], ' +
-            'input[placeholder*="Nome"], ' +
-            'input[placeholder*="Aporte"], ' +
-            'input[placeholder*="Meta"]'
-        );
-        
-        console.log(`🔍 Monitorando ${inputs.length} inputs para auto-save`);
-        
-        // Adicionar event listeners a todos os inputs
-        inputs.forEach(input => {
-            // Remover listeners antigos para evitar duplicação
-            input.removeEventListener('input', dispararAutoSave);
-            input.removeEventListener('change', dispararAutoSave);
+        try {
+            // Selecionar todos os inputs relevantes
+            const inputs = document.querySelectorAll(
+                '#renda input, #despesa input, #invest input, ' +
+                '.table-input, input[type="number"], ' +
+                'input[placeholder*="Descrição"], ' +
+                'input[placeholder*="Nome"], ' +
+                'input[placeholder*="Aporte"], ' +
+                'input[placeholder*="Meta"]'
+            );
             
-            // Adicionar novos listeners
-            input.addEventListener('input', dispararAutoSave);
-            input.addEventListener('change', dispararAutoSave);
-        });
-        
-        // Monitorar também cliques nos botões de remover
-        const botoesRemover = document.querySelectorAll('.btn-icon');
-        botoesRemover.forEach(botao => {
-            botao.removeEventListener('click', dispararAutoSave);
-            botao.addEventListener('click', function() {
-                // Pequeno delay para garantir que a linha foi removida
-                setTimeout(dispararAutoSave, 100);
+            console.log(`🔍 Monitorando ${inputs.length} inputs para auto-save`);
+            
+            // Adicionar event listeners a todos os inputs
+            inputs.forEach(input => {
+                try {
+                    // Remover listeners antigos para evitar duplicação
+                    input.removeEventListener('input', dispararAutoSave);
+                    input.removeEventListener('change', dispararAutoSave);
+                    
+                    // Adicionar novos listeners
+                    input.addEventListener('input', dispararAutoSave);
+                    input.addEventListener('change', dispararAutoSave);
+                } catch (err) {
+                    console.warn('⚠️ Erro ao adicionar listener:', err);
+                }
             });
-        });
+            
+            // Monitorar também cliques nos botões de remover
+            const botoesRemover = document.querySelectorAll('.btn-icon');
+            botoesRemover.forEach(botao => {
+                try {
+                    botao.removeEventListener('click', dispararAutoSave);
+                    botao.addEventListener('click', function() {
+                        // Pequeno delay para garantir que a linha foi removida
+                        setTimeout(dispararAutoSave, 100);
+                    });
+                } catch (err) {
+                    console.warn('⚠️ Erro ao adicionar listener no botão:', err);
+                }
+            });
+        } catch (error) {
+            console.error('❌ Erro ao monitorar inputs:', error);
+        }
     }
     
     // Executar monitoramento imediatamente
@@ -216,7 +228,7 @@ function configurarAutoSave() {
     });
     
     // Salvar periodicamente a cada 5 minutos também (backup)
-    setInterval(function() {
+    const periodicSaveInterval = setInterval(function() {
         if (navigator.onLine && document.visibilityState === 'visible' && alteracoesNaoSalvas) {
             console.log('💾 Auto-save periódico...');
             saveDashboardToSupabase().catch(() => {
@@ -224,6 +236,9 @@ function configurarAutoSave() {
             });
         }
     }, 5 * 60 * 1000); // 5 minutos
+    
+    // Armazenar referência para poder limpar
+    window.periodicSaveInterval = periodicSaveInterval;
     
     autoSaveConfigurado = true;
     console.log('✅ Auto-save configurado');
@@ -1484,6 +1499,32 @@ window.carregarDadosDashboard = async function(ano, mes) {
             error: error.message
         };
     }
+};
+
+/**
+ * Limpar recursos ao fazer logout
+ */
+window.limparRecursos = function() {
+    console.log('🧹 Limpando recursos...');
+    
+    // Limpar auto-save timeout
+    if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = null;
+    }
+    
+    // Limpar interval periódico
+    if (window.periodicSaveInterval) {
+        clearInterval(window.periodicSaveInterval);
+        window.periodicSaveInterval = null;
+    }
+    
+    // Resetar flags
+    autoSaveConfigurado = false;
+    alteracoesNaoSalvas = false;
+    isSavingToSupabase = false;
+    
+    console.log('✅ Recursos limpos');
 };
 
 window.salvarDadosDashboard = async function(ano, mes) {

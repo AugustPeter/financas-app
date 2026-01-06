@@ -401,43 +401,53 @@ function setupHUDfunctionality() {
     function limparDashboard() {
     console.log('🧹 LIMPANDO DASHBOARD...');
     
-    // Limpar todas as tabelas
-    ['renda', 'despesa', 'invest'].forEach(tipo => {
-        const tbody = document.querySelector(`#${tipo} tbody`);
-        if (tbody) {
-            tbody.innerHTML = '';
-        }
-    });
-    
-    // Zerar totais - COM VERIFICAÇÃO
-    const totalRendaEl = document.getElementById('totalRenda');
-    const totalDespesaEl = document.getElementById('totalDespesa');
-    const totalInvestEl = document.getElementById('totalInvest');
-    const saldoEl = document.getElementById('saldo');
-    
-    if (totalRendaEl) totalRendaEl.textContent = 'R$ 0,00';
-    if (totalDespesaEl) totalDespesaEl.textContent = 'R$ 0,00';
-    if (totalInvestEl) totalInvestEl.textContent = 'R$ 0,00';
-    if (saldoEl) saldoEl.textContent = 'R$ 0,00';
-    
-    // Atualizar contagens
-    updateCounts();
-    
-    // Adicionar uma linha vazia em cada tabela
-    setTimeout(() => {
-        addRow('renda', '', 0);
-        addRow('despesa', '', 0);
-        addInvest('', 0, 0);
+    try {
+        // Limpar todas as tabelas
+        ['renda', 'despesa', 'invest'].forEach(tipo => {
+            const tbody = document.querySelector(`#${tipo} tbody`);
+            if (tbody) {
+                tbody.innerHTML = '';
+            }
+        });
         
-        // Atualizar gráfico
-        if (typeof updateChart === 'function') {
-            updateChart(0, 0, 0, 0);
-        } else if (window.dashboardChart) {
-            createAlternativeChart(0, 0, 0, 0);
+        // Zerar totais - COM VERIFICAÇÃO
+        const totalRendaEl = document.getElementById('totalRenda');
+        const totalDespesaEl = document.getElementById('totalDespesa');
+        const totalInvestEl = document.getElementById('totalInvest');
+        const saldoEl = document.getElementById('saldo');
+        
+        if (totalRendaEl) totalRendaEl.textContent = 'R$ 0,00';
+        if (totalDespesaEl) totalDespesaEl.textContent = 'R$ 0,00';
+        if (totalInvestEl) totalInvestEl.textContent = 'R$ 0,00';
+        if (saldoEl) saldoEl.textContent = 'R$ 0,00';
+        
+        // Atualizar contagens
+        if (typeof updateCounts === 'function') {
+            updateCounts();
         }
         
-        console.log('✅ Dashboard limpo');
-    }, 100);
+        // Adicionar uma linha vazia em cada tabela
+        setTimeout(() => {
+            if (typeof addRow === 'function') {
+                addRow('renda', '', 0);
+                addRow('despesa', '', 0);
+            }
+            if (typeof addInvest === 'function') {
+                addInvest('', 0, 0);
+            }
+            
+            // Atualizar gráfico
+            if (typeof updateChart === 'function') {
+                updateChart(0, 0, 0, 0);
+            } else if (window.dashboardChart) {
+                createAlternativeChart(0, 0, 0, 0);
+            }
+            
+            console.log('✅ Dashboard limpo');
+        }, 100);
+    } catch (error) {
+        console.error('❌ Erro ao limpar dashboard:', error);
+    }
 }
     
     window.limparDashboard = limparDashboard;
@@ -446,18 +456,23 @@ function setupHUDfunctionality() {
     const saveBtn = document.getElementById('hudSaveBtn');
 if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
     saveBtn.setAttribute('data-hud-configured', 'true');
+    let lastSaveTime = 0; // CORRIGIDO: variável no escopo correto
+    
     saveBtn.onclick = async function(e) {
         // 🛑 BLOQUEAR MÚLTIPLOS CLIQUES
-        if (isSaving) {
+        const now = Date.now();
+        if (isSaving || (now - lastSaveTime) < 3500) {
             console.log('⚠️ Salvamento já em andamento, ignorando novo clique');
-            console.log(`⏳ Aguarde ${Math.ceil((lastSaveTime + 3500 - Date.now()) / 1000)}s`);
+            if ((now - lastSaveTime) < 3500) {
+                console.log(`⏳ Aguarde ${Math.ceil((lastSaveTime + 3500 - now) / 1000)}s`);
+            }
             return;
         }
         
         e.preventDefault();
         e.stopPropagation();
         isSaving = true;
-        const lastSaveTime = Date.now();
+        lastSaveTime = now;
         
         console.log('💾 Botão Salvar clicado');
         
@@ -781,6 +796,7 @@ function calc() {
   }
 }
 
+// Atualizar contagens (otimizado)
 function updateCounts() {
   const tables = ['renda', 'despesa', 'invest'];
   tables.forEach(tableId => {
@@ -792,6 +808,7 @@ function updateCounts() {
   });
 }
 
+// Formatar moeda
 function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -799,8 +816,14 @@ function formatCurrency(value) {
   }).format(value);
 }
 
+// ============================================
+// INTEGRAÇÃO COM SUPABASE - SIMPLIFICADA
+// ============================================
+
+// Função para carregar dados do Supabase
 async function loadFromCloud() {
     console.log('🔄 Carregando dados do Supabase...');
+    
     showToast('⏳ Carregando dados...', 'info');
     
     try {
@@ -838,8 +861,10 @@ async function loadFromCloud() {
     }
 }
 
+// Função para salvar dados no Supabase
 async function saveToCloud() {
     console.log('💾 Salvando dados no Supabase...');
+    
     showToast('⏳ Salvando dados...', 'info');
     
     try {
@@ -873,7 +898,9 @@ async function saveToCloud() {
     }
 }
 
+// Função para mostrar toast
 function showToast(message, type = 'info', duration = 3000) {
+    // Verificar se document.body e document.head existem
     if (!document.body || !document.head) {
         console.warn('⚠️ DOM não está pronto, showToast abortado:', message);
         return;
