@@ -1,9 +1,21 @@
 // js/dashboard.js - VERSÃO CORRIGIDA COM SUPABASE-DATA.JS
+console.log('📊 dashboard.js carregando...');
 let isSaving = false;
+// Flag para saber se já foi renderizado
+let dashboardAlreadyRendered = false;
+
+console.log('✅ dashboard.js carregado - loadDashboardContent disponível');
+
 // Função principal que será chamada pelo app.js
 function loadDashboardContent() {
   const dashboardContent = document.getElementById('dashboardContent');
   if (!dashboardContent) return;
+  
+  // Se já foi renderizado, não renderiza novamente (evita limpar dados)
+  if (dashboardAlreadyRendered && dashboardContent.querySelector('#renda')) {
+    console.log('✅ Dashboard já renderizado, pulando novo render');
+    return;
+  }
   
   // HTML do dashboard
   dashboardContent.innerHTML = `
@@ -94,11 +106,22 @@ function loadDashboardContent() {
     </div>
   `;
   
+  // Marcar como renderizado
+  dashboardAlreadyRendered = true;
+  
   // Inicializar tabelas com linhas vazias
   setTimeout(() => {
-    addRow('renda', '', 0);
-    addRow('despesa', '', 0);
-    addInvest('', 0, 0);
+    // Só adiciona linhas vazias se não houver dados ainda
+    if (!document.querySelector('#renda tbody tr')) {
+      addRow('renda', '', 0);
+    }
+    if (!document.querySelector('#despesa tbody tr')) {
+      addRow('despesa', '', 0);
+    }
+    if (!document.querySelector('#invest tbody tr')) {
+      addInvest('', 0, 0);
+    }
+    
     updateCounts();
     calc();
     // Carregamento delegado ao HUD
@@ -549,6 +572,16 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
         yearEl.setAttribute('data-hud-configured', 'true');
         
         const updateDisplay = async () => {
+            // 🛑 Bloquear completamente se já está carregando
+            if (window.isLoadingFromServer || window.hudBloqueado) {
+                console.log('⏭️ Carregamento bloqueado - operação em andamento');
+                // Reverter seletores para valor anterior
+                const monthIndex = parseInt(monthEl.value);
+                const year = parseInt(yearEl.value);
+                // NÃO fazer nada
+                return;
+            }
+            
             const monthIndex = parseInt(monthEl.value);
             const year = parseInt(yearEl.value);
             const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
@@ -556,17 +589,10 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
             
             console.log(`📅 Período selecionado: ${months[monthIndex]}/${year}`);
             
-            // Opcional: Atualizar título da página
-            const pageTitle = document.querySelector('h1');
-            if (pageTitle) {
-                const baseTitle = pageTitle.textContent.replace(/ - .*/, '');
-                pageTitle.textContent = `${baseTitle} - ${months[monthIndex]}/${year}`;
-            }
-            
-            // 🚀 CARREGAMENTO AUTOMÁTICO ao mudar período
+            // 🚀 CARREGAMENTO ao mudar período
             console.log('🔄 Carregando dados automaticamente...');
-            if (window.carregarMes) {
-                await window.carregarMes(year, monthIndex + 1);
+            if (typeof carregarMesEspecifico === 'function') {
+                await carregarMesEspecifico(year, monthIndex + 1);
             }
         };
         

@@ -7,6 +7,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Desabilitar cache -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
   <title>Finanças App</title>
   
   <!-- CSS Files -->
@@ -29,6 +35,37 @@
 <body>
   <!-- Container vazio - será preenchido por auth.js ou app.js -->
   <div id="app"></div>
+  
+  <!-- Overlay de Carregamento Inicial - Esconde bugues no F5 -->
+  <div id="loadingOverlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 20px;
+  ">
+    <div style="
+      width: 50px;
+      height: 50px;
+      border: 4px solid #334155;
+      border-top: 4px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    "></div>
+    <p style="color: #94a3b8; font-size: 14px; margin: 0;">Carregando dados...</p>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </div>
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,15 +80,26 @@
     console.log('✅ Supabase configurado');
   </script>
   
+  <script>
+    // Timestamp + random para forçar cache bust agressivo
+    window.APP_VERSION = Date.now() + '-' + Math.random().toString(36).substring(7);
+  </script>
+  
   <!-- Carregar auth.js PRIMEIRO -->
-  <script src="js/auth.js" defer></script>
-  <!-- Depois app.js -->
+  <script src="js/auth.js?v=1" defer></script>
+  
+  <!-- Depois os scripts principais em ordem (com cache bust agressivo) -->
+  <script>
+    const v = window.APP_VERSION;
+    document.write(`<script src="js/dashboard.js?v=${v}" defer><\/script>`);
+    document.write(`<script src="js/data.js?v=${v}" defer><\/script>`);
+    document.write(`<script src="js/charts.js?v=${v}" defer><\/script>`);
+    document.write(`<script src="js/supabase-data.js?v=${v}" defer><\/script>`);
+  </script>
+  
   <script src="js/app.js" defer></script>
-  <!-- Depois os outros -->
-   
-  <script src="js/supabase-data.js?v=2.0" defer></script>
-  <script src="js/data.js?v=2.0" defer></script>
-  <script src="js/charts.js?v=2.0" defer></script>
-  <script src="js/dashboard.js?v=2.0" defer></script>
+  
+  <!-- Connection Monitor -->
+  <script src="js/connection-monitor.js" defer></script>
 </body>
 </html>

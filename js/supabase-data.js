@@ -1,5 +1,7 @@
 // js/supabase-data.js - VERSÃO FINAL COM CORREÇÃO DO ERRO DE CONSTRAINT
 console.log('🗄️ supabase-data.js (Com correção de constraint)');
+console.log('🔥 VERSÃO CORRIGIDA CARREGADA - Com proteção anti-duplicação!');
+console.log('⏰ Timestamp de carregamento:', new Date().toISOString());
 
 // ============================================
 // CONFIGURAÇÃO
@@ -14,10 +16,34 @@ let modoPeriodoAtivo = false;
 let autoSaveConfigurado = false;
 let autoSaveTimeout = null;
 let ultimaAlteracao = null;
-const DEBOUNCE_DELAY = 2000; // Salva 2 segundos após a última alteração
+const DEBOUNCE_DELAY = 800; // Reduzido para 800ms - salva mais rápido
 
 // VARIÁVEL PARA CONTROLAR SE TEM ALTERAÇÕES NÃO SALVAS
 let alteracoesNaoSalvas = false;
+
+// VARIÁVEL PARA CONTROLAR SE ESTÁ CARREGANDO DADOS INICIAIS
+let isLoadingInitialData = true;
+
+// VARIÁVEL PARA CONTROLAR SE ESTÁ CARREGANDO DO SERVIDOR (evita múltiplos loads)
+let isLoadingFromServer = false;
+
+// VARIÁVEL PARA BLOQUEAR HUD DURANTE CARREGAMENTO
+let hudBloqueado = false;
+
+// ⏱️ TIMEOUT DE SEGURANÇA: Se overlay ficar preso por mais de 10s, esconde forçadamente
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay && loadingOverlay.style.display !== 'none') {
+            console.warn('⚠️ Overlay ainda visível após 10 segundos - escondendo forçadamente');
+            loadingOverlay.style.opacity = '0';
+            loadingOverlay.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 300);
+        }
+    }, 10000);
+});
 
 // Obter cliente Supabase (deve estar em window.supabase)
 function getSupabase() {
@@ -72,6 +98,26 @@ function getPeriodoFormatado() {
  * Disparar auto-save com debounce
  */
 function dispararAutoSave() {
+    console.log('🔍 dispararAutoSave() chamado - isLoadingInitialData:', isLoadingInitialData, 'isSavingToSupabase:', isSavingToSupabase, 'isApplyingData:', window.isApplyingData);
+    
+    // 🛑 BLOQUEAR durante carregamento inicial
+    if (isLoadingInitialData) {
+        console.log('⏭️ Auto-save bloqueado - carregando dados iniciais');
+        return;
+    }
+    
+    // 🛑 BLOQUEAR se já estiver salvando
+    if (isSavingToSupabase) {
+        console.log('⏭️ Auto-save bloqueado - salvamento em andamento');
+        return;
+    }
+    
+    // 🛑 BLOQUEAR se estiver aplicando dados do servidor
+    if (window.isApplyingData) {
+        console.log('⏭️ Auto-save bloqueado - aplicando dados do servidor');
+        return;
+    }
+    
     // Marcar que há alterações não salvas
     alteracoesNaoSalvas = true;
     
@@ -112,6 +158,12 @@ function dispararAutoSave() {
 function configurarAutoSave() {
     if (autoSaveConfigurado) {
         console.log('⏭️ Auto-save já configurado');
+        return;
+    }
+    
+    // SÓ CONFIGURAR se não estiver carregando dados iniciais
+    if (isLoadingInitialData) {
+        console.log('⏸️ Auto-save bloqueado - ainda carregando dados iniciais');
         return;
     }
     
@@ -315,14 +367,30 @@ function mostrarNotificacaoAutoSave(mensagem) {
 function atualizarStatusNaoSalvasHUD() {
     const btnSalvar = document.getElementById('hud-btn-salvar');
     if (btnSalvar) {
-        if (alteracoesNaoSalvas) {
-            btnSalvar.innerHTML = '💾* Salvar';
-            btnSalvar.style.background = '#f59e0b'; // Laranja para indicar alterações não salvas
-            btnSalvar.title = 'Há alterações não salvas - Clique para salvar';
+        let status = '';
+        let bgColor = '#3b82f6'; // Azul default
+        
+        // Verificar status de conexão
+        if (typeof ConnectionMonitor !== 'undefined' && !ConnectionMonitor.isConnectedToSupabase) {
+            status = '📴 Sem Conexão';
+            bgColor = '#ef4444'; // Vermelho
+        } else if (alteracoesNaoSalvas) {
+            status = '💾* Alterações';
+            bgColor = '#f59e0b'; // Laranja para indicar alterações não salvas
         } else {
-            btnSalvar.innerHTML = '💾 Salvar';
-            btnSalvar.style.background = '#3b82f6'; // Azul normal
-            btnSalvar.title = 'Salvar dados';
+            status = '✅ Sincronizado';
+            bgColor = '#10b981'; // Verde quando sincronizado
+        }
+        
+        btnSalvar.innerHTML = status;
+        btnSalvar.style.background = bgColor;
+        
+        if (!ConnectionMonitor.isConnectedToSupabase) {
+            btnSalvar.title = 'Sem conexão com servidor - dados salvos localmente';
+        } else if (alteracoesNaoSalvas) {
+            btnSalvar.title = 'Há alterações não salvas - Clique para salvar agora';
+        } else {
+            btnSalvar.title = 'Todos os dados sincronizados';
         }
     }
 }
@@ -342,6 +410,12 @@ function pausarAutoSave() {
  * Retomar auto-save
  */
 function retomarAutoSave() {
+    // NÃO retomar se estiver carregando dados iniciais
+    if (isLoadingInitialData) {
+        console.log('⏸️ Auto-save ainda bloqueado - carregando dados iniciais');
+        return;
+    }
+    
     console.log('▶️ Auto-save retomado');
     ultimaAlteracao = new Date(); // Resetar para evitar save imediato
 }
@@ -501,6 +575,22 @@ async function saveDashboardToSupabase(forcar = false) {
 async function loadDashboardFromSupabase(forcarAtualizacao = false) {
     console.log('📥 Carregando DO SUPABASE...', forcarAtualizacao ? '(FORÇADO)' : '');
     
+    // 🛑 BLOQUEAR se já estiver carregando
+    if (isLoadingFromServer) {
+        console.log('⏭️ Carregamento bloqueado - outro carregamento em andamento');
+        return { success: false, error: 'Carregamento em andamento' };
+    }
+    
+    // 🔒 Desabilitar HUD durante carregamento
+    bloquearHUD();
+    
+    // 👁️ Esconder HUD se for carregamento inicial (isLoadingInitialData)
+    if (isLoadingInitialData) {
+        esconderHUD();
+    }
+    
+    isLoadingFromServer = true;
+    
     const supabase = getSupabase();
     
     try {
@@ -583,10 +673,21 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
         const mensagem = `✅ Dados de ${getPeriodoFormatado()} carregados!`;
         
         
-        // RETOMAR auto-save após 1 segundo
+        // RETOMAR auto-save após 2 segundos
         setTimeout(() => {
+            isLoadingInitialData = false;
             retomarAutoSave();
-        }, 1000);
+            
+            // 🎉 Esconder overlay de carregamento quando dados chegarem
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                loadingOverlay.style.transition = 'opacity 0.3s ease-out';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+            }
+        }, 2000);
         
         return { 
             success: true, 
@@ -604,6 +705,21 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
             error: error.message,
             requiresLogin: error.message.includes('login')
         };
+    } finally {
+        // Sempre desbloquear carregamento
+        isLoadingFromServer = false;
+        
+        // 🎉 Garantir que overlay desapareça mesmo em caso de erro
+        if (isLoadingInitialData === false) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.style.display !== 'none') {
+                loadingOverlay.style.opacity = '0';
+                loadingOverlay.style.transition = 'opacity 0.3s ease-out';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+            }
+        }
     }
 }
 
@@ -613,21 +729,54 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
 async function carregarMesEspecifico(ano, mes) {
     console.log(`📅 Carregando mês específico: ${mes}/${ano}`);
     
-    // ✅ REMOVIDO O CONFIRM() QUE CAUSAVA O PROBLEMA
-    if (alteracoesNaoSalvas) {
-        console.log('⚠️ Há alterações não salvas no mês anterior');
+    // 🛑 BLOQUEAR se já estiver carregando
+    if (isLoadingFromServer) {
+        console.log('⏭️ Troca de mês bloqueada - carregamento em andamento');
+        console.log('⏭️ HUD permanecerá bloqueado até que termine');
+        return { success: false, error: 'Aguarde o carregamento atual' };
     }
+    
+    // 🔒 Bloquear HUD imediatamente (antes de qualquer operação)
+    bloquearHUD();
+    
+    // 👁️ Esconder HUD durante troca de mês
+    esconderHUD();
+    
+    // FORÇAR SALVAMENTO DO MÊS ANTERIOR SE HOUVER ALTERAÇÕES
+    if (alteracoesNaoSalvas && !isSavingToSupabase) {
+        console.log('💾 Salvando mês anterior antes de trocar...');
+        await saveDashboardToSupabase(true);
+        // Aguardar um pouco para garantir que salvou
+        await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    
+    // Aguardar um pouco mais para garantir que nada mais vai acontecer
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Atualizar variáveis globais
     anoSelecionado = ano;
     mesSelecionado = mes;
     modoPeriodoAtivo = true;
     
-    // Atualizar HUD se existir
-    atualizarHUDAnoMes();
+    // Resetar flag de renderização para permitir novo render
+    if (typeof window !== 'undefined') {
+        window.dashboardAlreadyRendered = false;
+    }
+    
+    // 👁️ Manter HUD escondido durante carregamento
+    esconderHUD();
     
     // Carregar dados - força atualização
-    return await loadDashboardFromSupabase(true);
+    const resultado = await loadDashboardFromSupabase(true);
+    
+    // Manter HUD bloqueado por mais 2 segundos após carregamento completar
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // 👁️ Mostrar HUD novamente
+    mostrarHUD();
+    desbloquearHUD();
+    
+    return resultado;
 }
 
 /**
@@ -855,8 +1004,12 @@ function collectDashboardData() {
 function applyDashboardData(data) {
     console.log('🔄 Aplicando dados na interface...');
     
+    // Marcar que está aplicando dados (bloqueia auto-save)
+    window.isApplyingData = true;
+    
     if (!data) {
         console.log('ℹ️ Nenhum dado para aplicar');
+        window.isApplyingData = false;
         return;
     }
     
@@ -878,10 +1031,19 @@ function applyDashboardData(data) {
         return;
     }
     
-    // Limpar primeiro
-    limparInterfaceDashboard();
+    // Verificar se dashboard já tem dados (não precisa limpar)
+    const rendaTbody = document.querySelector('#renda tbody');
+    const despesaTbody = document.querySelector('#despesa tbody');
     
-    // Esperar um pouco para garantir que a limpeza terminou
+    // Se já tem linhas, limpar antes de aplicar novos dados
+    const temDados = rendaTbody && rendaTbody.children.length > 0;
+    
+    if (temDados) {
+        console.log('🧹 Limpando dados antigos...');
+        limparInterfaceDashboard();
+    }
+    
+    // Esperar um pouco para garantir que a limpeza terminou (se necessário)
     setTimeout(() => {
         // VARIÁVEL DE CONTROLE
         let isApplyingData = true;
@@ -990,8 +1152,83 @@ function applyDashboardData(data) {
             }
             
             console.log('✅ Dados aplicados com sucesso!');
+            
+            // Desmarcar flag de aplicação
+            window.isApplyingData = false;
         }, 200);
     }, 300);
+}
+
+// ============================================
+// CONTROLE DE HUD
+// ============================================
+
+/**
+ * Bloquear interação com HUD durante carregamento
+ */
+function bloquearHUD() {
+    hudBloqueado = true;
+    console.log('🔒 HUD BLOQUEADO - Carregando dados');
+    const hud = document.getElementById('hud-periodo-container');
+    if (hud) {
+        // Ocultar completamente
+        hud.style.display = 'none';
+        hud.style.visibility = 'hidden';
+        hud.style.opacity = '0';
+        hud.style.pointerEvents = 'none';
+        
+        // Desabilitar selects e botões
+        const selects = hud.querySelectorAll('select, button');
+        selects.forEach(el => {
+            el.disabled = true;
+            el.setAttribute('disabled', 'disabled');
+        });
+    }
+}
+
+/**
+ * Desbloquear interação com HUD
+ */
+function desbloquearHUD() {
+    hudBloqueado = false;
+    console.log('🔓 HUD DESBLOQUEADO - Pronto para usar');
+    const hud = document.getElementById('hud-periodo-container');
+    if (hud) {
+        // Mostrar novamente
+        hud.style.display = 'flex';
+        hud.style.visibility = 'visible';
+        hud.style.opacity = '1';
+        hud.style.pointerEvents = 'auto';
+        
+        // Habilitar selects e botões
+        const selects = hud.querySelectorAll('select, button');
+        selects.forEach(el => {
+            el.disabled = false;
+            el.removeAttribute('disabled');
+        });
+    }
+}
+
+/**
+ * Esconder HUD durante carregamento inicial
+ */
+function esconderHUD() {
+    const hud = document.getElementById('hud-periodo-container');
+    if (hud) {
+        hud.style.display = 'none';
+        hud.style.visibility = 'hidden';
+    }
+}
+
+/**
+ * Mostrar HUD quando carregamento acabar
+ */
+function mostrarHUD() {
+    const hud = document.getElementById('hud-periodo-container');
+    if (hud) {
+        hud.style.display = 'flex';
+        hud.style.visibility = 'visible';
+    }
 }
 
 // ============================================
@@ -1186,26 +1423,69 @@ function criarHUDAnoMes() {
     });
     
     selectAno.addEventListener('change', function() {
+        // 🛑 Bloquear se já está carregando
+        if (isLoadingFromServer || hudBloqueado) {
+            console.log('⏭️ Mudança de ano bloqueada - carregamento em andamento');
+            selectAno.value = anoSelecionado; // Reverter valor
+            return;
+        }
+        
         anoSelecionado = parseInt(this.value);
         labelPeriodo.textContent = getPeriodoFormatado();
         modoPeriodoAtivo = true;
         btnModo.style.background = '#10b981';
+        
+        // FORÇAR SALVAMENTO ANTES DE MUDAR DE ANO
+        if (alteracoesNaoSalvas) {
+            console.log('💾 Forçando salvamento ao mudar de ano...');
+            saveDashboardToSupabase(true);
+        }
+        
+        // CARREGAR novo ano
+        console.log(`📅 Carregando ano: ${anoSelecionado}`);
+        carregarMesEspecifico(anoSelecionado, mesSelecionado);
     });
     
     selectMes.addEventListener('change', function() {
+        // 🛑 Bloquear se já está carregando
+        if (isLoadingFromServer || hudBloqueado) {
+            console.log('⏭️ Mudança de mês bloqueada - carregamento em andamento');
+            selectMes.value = mesSelecionado; // Reverter valor
+            return;
+        }
+        
         mesSelecionado = parseInt(this.value);
         labelPeriodo.textContent = getPeriodoFormatado();
         modoPeriodoAtivo = true;
         btnModo.style.background = '#10b981';
+        
+        // FORÇAR SALVAMENTO ANTES DE MUDAR DE MÊS
+        if (alteracoesNaoSalvas) {
+            console.log('💾 Forçando salvamento ao mudar de mês...');
+            saveDashboardToSupabase(true);
+        }
+        
+        // CARREGAR novo mês
+        console.log(`📅 Carregando mês: ${mesSelecionado}`);
+        carregarMesEspecifico(anoSelecionado, mesSelecionado);
     });
     
     btnCarregar.addEventListener('click', async function() {
+        // 🛑 Bloquear se já está carregando
+        if (isLoadingFromServer || hudBloqueado) {
+            console.log('⏭️ Carregamento bloqueado - operação em andamento');
+            return;
+        }
+        
         const originalHTML = this.innerHTML;
         this.disabled = true;
         this.innerHTML = '📥 Carregando...';
         this.style.background = '#6b7280';
         
         try {
+            // Bloquear HUD antes de carregar
+            bloquearHUD();
+            
             // Forçar carregamento dos dados mais recentes
             const result = await loadDashboardFromSupabase(true);
             
@@ -1226,10 +1506,16 @@ function criarHUDAnoMes() {
             this.style.background = '#ef4444';
         }
         
+        // Manter bloqueado por 2 segundos e depois desbloquear
+        // MAS: Só desbloquear se não estiver em carregamento de mês (isLoadingFromServer será true)
         setTimeout(() => {
             this.innerHTML = originalHTML;
             this.style.background = '#3b82f6';
             this.disabled = false;
+            // Só desbloquear se não estiver carregando de outro lugar
+            if (!isLoadingFromServer && !hudBloqueado) {
+                desbloquearHUD();
+            }
         }, 2000);
     });
     
@@ -1420,27 +1706,51 @@ function showInfo(message) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Inicializando sistema Supabase...');
     
+    // RESETAR flag de carregamento inicial
+    isLoadingInitialData = true;
+    
     setTimeout(async () => {
         try {
             const supabase = getSupabase();
             const { data: { session } } = await supabase.auth.getSession();
             
             if (session) {
-                console.log('🌐 Usuário logado - Criando HUD...');
+                console.log('🌐 Usuário logado');
+                
+                // Configurar callbacks do Connection Monitor
+                setupConnectionMonitorCallbacks();
+                
+                // Tentar restaurar dados de backup local se houver
+                try {
+                    await ConnectionMonitor.restoreFromBackup();
+                } catch (error) {
+                    console.log('ℹ️ Nenhum backup para restaurar');
+                }
                 
                 if (window.location.hash.includes('dashboard') || 
                     document.querySelector('[data-page="dashboard"]')) {
                     
+                    // Criar HUD
+                    console.log('🎮 Criando HUD...');
                     criarHUDAnoMes();
                     
-                    // Carregar dados do mês atual automaticamente
-                    console.log('📊 Carregando dados do mês atual...');
-                    await loadDashboardFromSupabase(true); // Forçar carregamento inicial
+                    // Carregar dados do servidor (irá popular automaticamente)
+                    console.log('📊 Carregando dados...');
+                    await loadDashboardFromSupabase(true);
                     
-                    // INICIALIZAR O AUTO-SAVE APÓS CARREGAR OS DADOS
+                    // LIBERAR AUTO-SAVE E INICIALIZAR APÓS CARREGAR OS DADOS
                     setTimeout(() => {
-                        configurarAutoSave();
-                    }, 2000);
+                        // Só desbloquear se não estiver em carregamento de mês
+                        if (!isLoadingFromServer) {
+                            isLoadingInitialData = false;
+                            console.log('✅ Carregamento inicial concluído - auto-save liberado');
+                            configurarAutoSave();
+                            
+                            // 👁️ Mostrar HUD agora que carregamento terminou
+                            mostrarHUD();
+                            desbloquearHUD();
+                        }
+                    }, 5000); // 5 segundos para garantir que tudo foi aplicado
                 }
             } else {
                 console.log('👤 Usuário não está logado');
@@ -1538,5 +1848,124 @@ window.salvarDadosDashboard = async function(ano, mes) {
         };
     }
 };
+
+// ============================================
+// INTEGRAÇÃO COM CONNECTION MONITOR
+// ============================================
+
+/**
+ * Configurar callbacks do Connection Monitor
+ */
+function setupConnectionMonitorCallbacks() {
+    if (typeof ConnectionMonitor === 'undefined') {
+        console.warn('⚠️ ConnectionMonitor não disponível');
+        return;
+    }
+    
+    // Quando a conexão é perdida
+    ConnectionMonitor.onConnectionLost = async function() {
+        console.log('⚠️ Conexão perdida - ativando modo offline');
+        mostrarNotificacaoDesconexao();
+        
+        // Se houver alterações, tentar salvar em localStorage
+        if (alteracoesNaoSalvas) {
+            const dadosBackup = collectDashboardData();
+            localStorage.setItem('dashboardBackup', JSON.stringify({
+                data: dadosBackup,
+                timestamp: new Date().toISOString(),
+                periodo: getPeriodoParaBanco()
+            }));
+            console.log('💾 Dados salvos em backup local');
+        }
+    };
+    
+    // Quando a conexão é restaurada
+    ConnectionMonitor.onConnectionRestored = async function() {
+        console.log('✅ Conexão restaurada - sincronizando...');
+        removerNotificacaoDesconexao();
+        
+        // Tentar restaurar dados de backup
+        const backupRestaurado = await ConnectionMonitor.restoreFromBackup();
+        
+        // Se houver dados em backup local
+        if (!backupRestaurado) {
+            const backupLocal = localStorage.getItem('dashboardBackup');
+            if (backupLocal) {
+                try {
+                    const backup = JSON.parse(backupLocal);
+                    const agora = new Date();
+                    const timeBackup = new Date(backup.timestamp);
+                    
+                    // Se backup foi criado recentemente (últimos 30 min)
+                    if (agora - timeBackup < 30 * 60 * 1000) {
+                        console.log('🔄 Restaurando dados do backup local...');
+                        applyDashboardData(backup.data);
+                        
+                        // Salvar no Supabase
+                        await saveDashboardToSupabase(true);
+                        localStorage.removeItem('dashboardBackup');
+                    }
+                } catch (error) {
+                    console.error('Erro ao restaurar backup:', error);
+                }
+            }
+        }
+        
+        // Recarregar dados do Supabase
+        try {
+            await loadDashboardFromSupabase(true);
+            showSuccess('✅ Dados sincronizados!');
+        } catch (error) {
+            console.error('Erro ao sincronizar:', error);
+        }
+    };
+    
+    console.log('✅ Callbacks do Connection Monitor configurados');
+}
+
+/**
+ * Mostrar notificação de desconexão
+ */
+let notificacaoDesconexao = null;
+function mostrarNotificacaoDesconexao() {
+    if (notificacaoDesconexao) return;
+    
+    notificacaoDesconexao = document.createElement('div');
+    notificacaoDesconexao.id = 'notificacao-desconexao';
+    notificacaoDesconexao.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ef4444;
+        color: white;
+        padding: 12px 20px;
+        text-align: center;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    `;
+    notificacaoDesconexao.innerHTML = '📴 Sem conexão - tentando reconectar...';
+    document.body.appendChild(notificacaoDesconexao);
+    
+    // Adicionar margem ao body para não sobrepor conteúdo
+    if (document.body) {
+        document.body.style.paddingTop = '50px';
+    }
+}
+
+/**
+ * Remover notificação de desconexão
+ */
+function removerNotificacaoDesconexao() {
+    if (notificacaoDesconexao && notificacaoDesconexao.parentElement) {
+        notificacaoDesconexao.remove();
+        notificacaoDesconexao = null;
+    }
+    
+    if (document.body) {
+        document.body.style.paddingTop = '0';
+    }
+}
 
 console.log('✅ supabase-data.js (com correção de constraint) pronto!');

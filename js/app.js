@@ -129,36 +129,44 @@
         return;
       }
 
-      // Se já existe conteúdo e não está num estado "Carregando", evita recarregar
-      const contentTrim = dashboardContent.innerHTML.trim();
-      if (contentTrim && !contentTrim.includes('Carregando')) {
+      // Se já tem conteúdo renderizado, não renderiza novamente
+      if (dashboardContent.querySelector('#renda')) {
+        console.log('✅ Dashboard já está renderizado');
         AppCache.isDashboardLoading = false;
         return;
       }
 
-      // Marcar loading UI rápido para UX
-      dashboardContent.innerHTML = `
-        <div style="text-align:center;padding:3rem">
-          <div style="font-size:3rem;margin-bottom:1rem">📊</div>
-          <h2>Carregando Dashboard...</h2>
-          <p>Por favor aguarde.</p>
-        </div>
-      `;
-
-      // Defer para próxima pintura e então chamar loadDashboardContent
-      await new Promise(resolve => requestAnimationFrame(() => resolve()));
+      // Renderizar o dashboard (dados já foram carregados por supabase-data.js)
       if (typeof loadDashboardContent === 'function') {
+        console.log('🎨 Renderizando dashboard...');
         loadDashboardContent();
       } else {
-        dashboardContent.innerHTML = `
-          <div style="text-align:center;padding:3rem;color:#ef4444">
-            <h2>Erro ao carregar dashboard</h2>
-            <p>Função loadDashboardContent não encontrada.</p>
-            <button id="retryDashboard" style="padding:.75rem 1.5rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;cursor:pointer">Tentar novamente</button>
-          </div>
-        `;
-        const retry = document.getElementById('retryDashboard');
-        if (retry) retry.addEventListener('click', loadDashboard);
+        // Aguardar um pouco caso os scripts ainda estejam carregando
+        console.log('⏳ Aguardando loadDashboardContent carregar...');
+        let attempts = 0;
+        const waitForDashboard = setInterval(() => {
+          attempts++;
+          if (typeof loadDashboardContent === 'function') {
+            clearInterval(waitForDashboard);
+            console.log('🎨 Renderizando dashboard (após espera)...');
+            loadDashboardContent();
+          } else if (attempts > 10) {
+            clearInterval(waitForDashboard);
+            // Se loadDashboardContent não está disponível após 2s, mostrar erro
+            dashboardContent.innerHTML = `
+              <div style="text-align:center;padding:3rem;color:#ef4444">
+                <h2>Erro ao carregar dashboard</h2>
+                <p>Função loadDashboardContent não encontrada.</p>
+                <p style="font-size:0.9rem;margin-top:1rem;color:#94a3b8">Verifique o console para mais detalhes.</p>
+                <button id="retryDashboard" style="margin-top:1rem;padding:.75rem 1.5rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;cursor:pointer">Tentar novamente</button>
+              </div>
+            `;
+            const retry = document.getElementById('retryDashboard');
+            if (retry) retry.addEventListener('click', () => {
+              location.reload();
+            });
+          }
+        }, 200);
       }
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err);
