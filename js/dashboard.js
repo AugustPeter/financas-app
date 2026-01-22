@@ -42,8 +42,11 @@ function loadDashboardContent() {
     <!-- Rendas e Despesas -->
     <div class="main-grid">
       <div class="content-card">
-        <h3>Rendas <span id="rendaCount" style="color: #94a3b8; font-size: 14px;">0 itens</span></h3>
-        <div class="table-container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">Rendas <span id="rendaCount" style="color: #64748b; font-size: 13px; font-weight: 400; margin-left: 8px;">(0 itens)</span></h3>
+          <button class="btn-collapse" id="toggleRenda" onclick="toggleSection('renda')" title="Minimizar/Expandir">−</button>
+        </div>
+        <div class="table-container" id="rendaContainer">
           <table id="renda">
             <thead>
               <tr>
@@ -59,8 +62,11 @@ function loadDashboardContent() {
       </div>
       
       <div class="content-card">
-        <h3>Despesas <span id="despesaCount" style="color: #94a3b8; font-size: 14px;">0 itens</span></h3>
-        <div class="table-container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">Despesas <span id="despesaCount" style="color: #64748b; font-size: 13px; font-weight: 400; margin-left: 8px;">(0 itens)</span></h3>
+          <button class="btn-collapse" id="toggleDespesa" onclick="toggleSection('despesa')" title="Minimizar/Expandir">−</button>
+        </div>
+        <div class="table-container" id="despesaContainer">
           <table id="despesa">
             <thead>
               <tr>
@@ -80,7 +86,7 @@ function loadDashboardContent() {
     <!-- Investimentos e Gráfico -->
     <div class="main-grid">
       <div class="content-card">
-        <h3>Investimentos <span id="investCount" style="color: #94a3b8; font-size: 14px;">0 itens</span></h3>
+        <h3>Investimentos <span id="investCount" style="color: #64748b; font-size: 13px; font-weight: 400; margin-left: 8px;">(0 itens)</span></h3>
         <div class="table-container">
           <table id="invest">
             <thead>
@@ -422,7 +428,6 @@ function setupHUDfunctionality() {
     }
 
     function limparDashboard() {
-    console.log('🧹 LIMPANDO DASHBOARD...');
     
     try {
         // Limpar todas as tabelas
@@ -465,8 +470,6 @@ function setupHUDfunctionality() {
             } else if (window.dashboardChart) {
                 createAlternativeChart(0, 0, 0, 0);
             }
-            
-            console.log('✅ Dashboard limpo');
         }, 100);
     } catch (error) {
         console.error('❌ Erro ao limpar dashboard:', error);
@@ -605,7 +608,6 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
     
     // Marcar como configurado
     hudSetupDone = true;
-    console.log('✅ HUD configurado com sucesso');
 }
 
 // Sistema de inicialização inteligente
@@ -615,7 +617,6 @@ function initMonthHUD() {
     // Limpar HUDs duplicados se existirem
     const existingHUDs = document.querySelectorAll('#monthHUD');
     if (existingHUDs.length > 1) {
-        console.log(`🧹 Removendo ${existingHUDs.length - 1} HUD(s) duplicado(s)`);
         for (let i = 1; i < existingHUDs.length; i++) {
             existingHUDs[i].remove();
         }
@@ -625,7 +626,6 @@ function initMonthHUD() {
     if (!document.getElementById('monthHUD')) {
         createPermanentMonthHUD();
     } else {
-        console.log('✅ HUD já existe, apenas configurando...');
         setupHUDfunctionality();
     }
 }
@@ -636,33 +636,24 @@ let isAutoLoadingData = false; // Flag para evitar múltiplos carregamentos
 
 function initializeHUDSystem() {
     if (hudInitialized) {
-        console.log('⏭️ Sistema HUD já inicializado');
         return;
     }
     
-    console.log('🎯 Iniciando sistema HUD...');
-    
     // 1. Quando o DOM carregar
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('📋 DOM carregado, agendando HUD...');
         
         // Aguardar um pouco para o dashboard carregar
         setTimeout(() => {
             initMonthHUD();
-            
-            // ❌ NÃO carregar automaticamente na inicialização
-            console.log('ℹ️ Dashboard pronto - troque o mês/ano ou clique em Carregar');
         }, 1500);
     });
     
     // 2. Se o dashboard for recarregado dinamicamente
     if (typeof loadDashboardContent === 'function') {
-        console.log('🔁 Monitorando recarregamentos do dashboard...');
         
         // Sobrescrever com proteção
         const originalLoadDashboard = loadDashboardContent;
         window.loadDashboardContent = function() {
-            console.log('🔄 Dashboard recarregando, HUD será recriado...');
             
             // Resetar flags
             hudCreated = false;
@@ -674,25 +665,18 @@ function initializeHUDSystem() {
             // Recriar HUD após um delay
             setTimeout(() => {
                 initMonthHUD();
-                
-                // NÃO carregar automaticamente aqui (já vai carregar no updateDisplay)
             }, 1000);
         };
     }
     
     // 3. Inicialização imediata se o DOM já estiver pronto
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        console.log('⚡ DOM já pronto, inicializando HUD agora...');
         setTimeout(() => {
             initMonthHUD();
-            
-            // ❌ NÃO carregar automaticamente na inicialização
-            console.log('ℹ️ HUD pronto - troque o mês/ano ou clique em Carregar');
         }, 500);
     }
     
     hudInitialized = true;
-    console.log('✅ Sistema HUD inicializado com sucesso');
 }
 
 // Iniciar o sistema
@@ -829,7 +813,7 @@ function updateCounts() {
     const countEl = document.getElementById(`${tableId}Count`);
     if (countEl) {
       const count = document.querySelectorAll(`#${tableId} tbody tr`).length;
-      countEl.textContent = `${count} ite${count === 1 ? 'm' : 'ns'}`;
+      countEl.textContent = count === 1 ? '(1 item)' : `(${count} itens)`;
     }
   });
 }
@@ -843,182 +827,6 @@ function formatCurrency(value) {
 }
 
 // ============================================
-// INTEGRAÇÃO COM SUPABASE - SIMPLIFICADA
-// ============================================
-
-// Função para carregar dados do Supabase
-async function loadFromCloud() {
-    console.log('🔄 Carregando dados do Supabase...');
-    
-    showToast('⏳ Carregando dados...', 'info');
-    
-    try {
-        let result;
-        
-        // Opção 1: Usar a função específica do supabase-data.js
-        if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
-            result = await window.supabaseData.load();
-        }
-        // Opção 2: Usar a função global
-        else if (typeof loadDashboardFromSupabase === 'function') {
-            result = await loadDashboardFromSupabase();
-        }
-        else {
-            throw new Error('Sistema de carregamento não disponível');
-        }
-        
-        if (result && result.success) {
-            if (result.empty) {
-                showToast('📭 Mês sem dados salvos', 'info');
-            } else {
-                showToast('✅ Dados carregados com sucesso!', 'success');
-            }
-            return result;
-        } else {
-            const errorMsg = result ? result.error : 'Erro desconhecido';
-            showToast(`❌ Erro: ${errorMsg}`, 'error');
-            return { success: false, error: errorMsg };
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar:', error);
-        showToast(`❌ Erro: ${error.message}`, 'error');
-        return { success: false, error: error.message };
-    }
-}
-
-// Função para salvar dados no Supabase
-async function saveToCloud() {
-    console.log('💾 Salvando dados no Supabase...');
-    
-    showToast('⏳ Salvando dados...', 'info');
-    
-    try {
-        let result;
-        
-        // Opção 1: Usar a função específica do supabase-data.js
-        if (typeof window.supabaseData !== 'undefined' && window.supabaseData.save) {
-            result = await window.supabaseData.save();
-        }
-        // Opção 2: Usar a função global
-        else if (typeof saveDashboardToSupabase === 'function') {
-            result = await saveDashboardToSupabase(true);
-        }
-        else {
-            throw new Error('Sistema de salvamento não disponível');
-        }
-        
-        if (result && result.success) {
-            showToast('✅ Dados salvos com sucesso!', 'success');
-            return result;
-        } else {
-            const errorMsg = result ? result.error : 'Erro desconhecido';
-            showToast(`❌ Erro: ${errorMsg}`, 'error');
-            return { success: false, error: errorMsg };
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao salvar:', error);
-        showToast(`❌ Erro: ${error.message}`, 'error');
-        return { success: false, error: error.message };
-    }
-}
-
-// Função para mostrar toast
-function showToast(message, type = 'info', duration = 3000) {
-    // Verificar se document.body e document.head existem
-    if (!document.body || !document.head) {
-        console.warn('⚠️ DOM não está pronto, showToast abortado:', message);
-        return;
-    }
-    
-    // Remover toasts antigos
-    const oldToasts = document.querySelectorAll('.toast-message');
-    oldToasts.forEach(toast => {
-        if (toast.parentElement) toast.parentElement.remove();
-    });
-    
-    const colors = {
-        success: '#10b981',
-        error: '#ef4444',
-        warning: '#f59e0b',
-        info: '#3b82f6'
-    };
-    
-    const icon = {
-        success: '✅',
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️'
-    };
-    
-    const toast = document.createElement('div');
-    toast.className = 'toast-message';
-    toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${colors[type] || colors.info};
-        color: white;
-        padding: 12px 16px;
-        border-radius: 8px;
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        animation: slideIn 0.3s ease;
-    `;
-    
-    toast.innerHTML = `
-        <span style="font-size: 16px;">${icon[type] || icon.info}</span>
-        <span>${message}</span>
-    `;
-    
-    // Verificação extra antes de adicionar
-    if (document.body) {
-        document.body.appendChild(toast);
-    } else {
-        console.warn('⚠️ document.body desapareceu, não foi possível mostrar toast');
-        return;
-    }
-    
-    // Adicionar estilo de animação
-    if (!document.querySelector('#toast-animation')) {
-        const style = document.createElement('style');
-        style.id = 'toast-animation';
-        style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-        `;
-        if (document.head) {
-            document.head.appendChild(style);
-        }
-    }
-    
-    // Remover após duração
-    setTimeout(() => {
-        if (toast && toast.parentElement) {
-            toast.remove();
-        }
-    }, duration);
-}
-
-// Adicionar botões de gerenciamento de dados
-
-
-// Adicionar botões quando dashboard carregar
-
-
-// ============================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ============================================
 
@@ -1028,12 +836,8 @@ window.removeRow = removeRow;
 window.calc = calc;
 window.updateCounts = updateCounts;
 window.formatCurrency = formatCurrency;
-window.loadFromCloud = loadFromCloud;
-window.saveToCloud = saveToCloud;
-window.showToast = showToast;
 window.loadDashboardContent = loadDashboardContent;
 window.limparDashboard = function() {
-    console.log('🧹 Limpando dashboard...');
     
     // Limpar todas as tabelas
     ['renda', 'despesa', 'invest'].forEach(tipo => {
@@ -1063,5 +867,118 @@ window.limparDashboard = function() {
         calc();
     }, 100);
 };
+
+// ================================================
+// FUNÇÕES DE COLLAPSE/EXPAND PARA RENDAS E DESPESAS
+// ================================================
+
+// Objeto para rastrear estado das seções
+const sectionStates = {
+    renda: localStorage.getItem('renda-expanded') !== 'false',
+    despesa: localStorage.getItem('despesa-expanded') !== 'false'
+};
+
+// Restaurar estado ao carregar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (!sectionStates.renda) toggleSection('renda', false);
+        if (!sectionStates.despesa) toggleSection('despesa', false);
+    }, 500);
+});
+
+function toggleSection(type, save = true) {
+    const container = document.getElementById(`${type}Container`);
+    const button = document.getElementById(`toggle${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    const card = container?.parentElement;
+    
+    if (!container || !button || !card) return;
+    
+    const isHidden = container.style.display === 'none';
+    
+    if (isHidden) {
+        // Expandir
+        container.style.display = 'block';
+        container.style.animation = 'slideDown 0.3s ease-out';
+        card.style.minHeight = 'auto';
+        button.textContent = '−';
+        button.title = 'Minimizar';
+        sectionStates[type] = true;
+    } else {
+        // Minimizar
+        container.style.animation = 'slideUp 0.3s ease-out';
+        setTimeout(() => {
+            container.style.display = 'none';
+            card.style.minHeight = '0';
+        }, 300);
+        button.textContent = '+';
+        button.title = 'Expandir';
+        sectionStates[type] = false;
+    }
+    
+    // Salvar estado no localStorage
+    if (save) {
+        localStorage.setItem(`${type}-expanded`, sectionStates[type]);
+    }
+}
+
+// Adicionar CSS para animações
+const style = document.createElement('style');
+style.textContent = `
+    .btn-collapse {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #64748b;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+    
+    .btn-collapse:hover {
+        background-color: rgba(100, 116, 139, 0.1);
+        color: #0f172a;
+        transform: scale(1.1);
+    }
+    
+    #rendaContainer,
+    #despesaContainer {
+        transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .content-card {
+        transition: all 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    }
+`;
+document.head.appendChild(style);
 
 console.log('✅ dashboard.js (corrigido e integrado) pronto!');

@@ -1,7 +1,4 @@
 // js/supabase-data.js - VERSÃO FINAL COM CORREÇÃO DO ERRO DE CONSTRAINT
-console.log('🗄️ supabase-data.js (Com correção de constraint)');
-console.log('🔥 VERSÃO CORRIGIDA CARREGADA - Com proteção anti-duplicação!');
-console.log('⏰ Timestamp de carregamento:', new Date().toISOString());
 
 // ============================================
 // CONFIGURAÇÃO
@@ -98,23 +95,19 @@ function getPeriodoFormatado() {
  * Disparar auto-save com debounce
  */
 function dispararAutoSave() {
-    console.log('🔍 dispararAutoSave() chamado - isLoadingInitialData:', isLoadingInitialData, 'isSavingToSupabase:', isSavingToSupabase, 'isApplyingData:', window.isApplyingData);
     
     // 🛑 BLOQUEAR durante carregamento inicial
     if (isLoadingInitialData) {
-        console.log('⏭️ Auto-save bloqueado - carregando dados iniciais');
         return;
     }
     
     // 🛑 BLOQUEAR se já estiver salvando
     if (isSavingToSupabase) {
-        console.log('⏭️ Auto-save bloqueado - salvamento em andamento');
         return;
     }
     
     // 🛑 BLOQUEAR se estiver aplicando dados do servidor
     if (window.isApplyingData) {
-        console.log('⏭️ Auto-save bloqueado - aplicando dados do servidor');
         return;
     }
     
@@ -135,12 +128,10 @@ function dispararAutoSave() {
     // Agendar novo save
     autoSaveTimeout = setTimeout(async () => {
         if (navigator.onLine) {
-            console.log('💾 Auto-save disparado...');
             
             try {
                 const result = await saveDashboardToSupabase();
                 if (result.success) {
-                    console.log('✅ Auto-save concluído');
                     
                     alteracoesNaoSalvas = false;
                     atualizarStatusNaoSalvasHUD();
@@ -157,17 +148,13 @@ function dispararAutoSave() {
  */
 function configurarAutoSave() {
     if (autoSaveConfigurado) {
-        console.log('⏭️ Auto-save já configurado');
         return;
     }
     
     // SÓ CONFIGURAR se não estiver carregando dados iniciais
     if (isLoadingInitialData) {
-        console.log('⏸️ Auto-save bloqueado - ainda carregando dados iniciais');
         return;
     }
-    
-    console.log('💾 Configurando auto-save automático...');
     
     // Monitorar TODOS os inputs financeiros
     function monitorarInputs() {
@@ -181,8 +168,6 @@ function configurarAutoSave() {
                 'input[placeholder*="Aporte"], ' +
                 'input[placeholder*="Meta"]'
             );
-            
-            console.log(`🔍 Monitorando ${inputs.length} inputs para auto-save`);
             
             // Adicionar event listeners a todos os inputs
             inputs.forEach(input => {
@@ -293,7 +278,6 @@ function configurarAutoSave() {
     window.periodicSaveInterval = periodicSaveInterval;
     
     autoSaveConfigurado = true;
-    console.log('✅ Auto-save configurado');
 }
 
 /**
@@ -402,7 +386,6 @@ function pausarAutoSave() {
     if (autoSaveTimeout) {
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = null;
-        console.log('⏸️ Auto-save pausado temporariamente');
     }
 }
 
@@ -412,11 +395,9 @@ function pausarAutoSave() {
 function retomarAutoSave() {
     // NÃO retomar se estiver carregando dados iniciais
     if (isLoadingInitialData) {
-        console.log('⏸️ Auto-save ainda bloqueado - carregando dados iniciais');
         return;
     }
     
-    console.log('▶️ Auto-save retomado');
     ultimaAlteracao = new Date(); // Resetar para evitar save imediato
 }
 
@@ -430,11 +411,9 @@ function retomarAutoSave() {
 let isSavingToSupabase = false;
 
 async function saveDashboardToSupabase(forcar = false) {
-    console.log('💾 Salvando NO SUPABASE...', forcar ? '(FORÇADO)' : '');
     
     // 🛑 BLOQUEAR MÚLTIPLOS SALVAMENTOS SIMULTÂNEOS
     if (isSavingToSupabase) {
-        console.log('⚠️ Salvamento já em andamento, ignorando novo pedido');
         return { 
             success: false, 
             error: 'Salvamento já em andamento. Aguarde...' 
@@ -471,8 +450,6 @@ async function saveDashboardToSupabase(forcar = false) {
             forçado: forcar
         };
         
-        console.log(`📤 Usuário: ${userId.substring(0, 8)}... | Período: ${periodoBanco}`);
-        
         // Salvar apenas com campos essenciais
         const dadosParaSalvar = {
             user_id: userId,
@@ -497,7 +474,6 @@ async function saveDashboardToSupabase(forcar = false) {
         let result;
         if (existingData) {
             // Atualizar registro existente
-            console.log('📝 Atualizando registro existente ID:', existingData.id);
             const { data, error } = await supabase
                 .from('finance_data')
                 .update(dadosParaSalvar)
@@ -512,7 +488,6 @@ async function saveDashboardToSupabase(forcar = false) {
             result = data;
         } else {
             // Inserir novo registro
-            console.log('📝 Inserindo novo registro');
             const { data, error } = await supabase
                 .from('finance_data')
                 .insert(dadosParaSalvar)
@@ -525,8 +500,6 @@ async function saveDashboardToSupabase(forcar = false) {
             
             result = data;
         }
-        
-        console.log('✅ SALVO no Supabase com sucesso!');
         
         // Resetar flag de alterações não salvas
         alteracoesNaoSalvas = false;
@@ -564,7 +537,6 @@ async function saveDashboardToSupabase(forcar = false) {
         // 🔓 SEMPRE RESETAR A FLAG APÓS TERMINAR
         setTimeout(() => {
             isSavingToSupabase = false;
-            console.log('✅ Flag isSavingToSupabase resetada');
         }, 500);
     }
 }
@@ -573,11 +545,9 @@ async function saveDashboardToSupabase(forcar = false) {
  * CARREGAR dados do Supabase - CORRIGIDO: FORÇA ATUALIZAÇÃO DA INTERFACE
  */
 async function loadDashboardFromSupabase(forcarAtualizacao = false) {
-    console.log('📥 Carregando DO SUPABASE...', forcarAtualizacao ? '(FORÇADO)' : '');
     
     // 🛑 BLOQUEAR se já estiver carregando
     if (isLoadingFromServer) {
-        console.log('⏭️ Carregamento bloqueado - outro carregamento em andamento');
         return { success: false, error: 'Carregamento em andamento' };
     }
     
@@ -608,8 +578,6 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
         const userId = session.user.id;
         const periodoBanco = getPeriodoParaBanco();
         
-        console.log(`📋 Buscando: ${userId.substring(0, 8)}... | ${periodoBanco}`);
-        
         // Buscar do Supabase
         const { data, error } = await supabase
             .from('finance_data')
@@ -626,7 +594,6 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
         }
         
         if (!data) {
-            console.log('📭 Nenhum dado encontrado para este período - LIMPANDO INTERFACE');
             
             // IMPORTANTE: Limpar toda a interface quando não há dados
             limparInterfaceDashboard();
@@ -642,13 +609,10 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
             };
         }
         
-        console.log('✅ Dados carregados do Supabase!', 'Atualizado em:', data.updated_at);
-        
         // Verificar se os dados são do período correto
         if (data.data && data.data.periodo_info) {
             const periodoSalvo = data.data.periodo_info.periodo_banco;
             if (periodoSalvo !== periodoBanco) {
-                console.log('⚠️ Dados de período diferente encontrados - limpando');
                 limparInterfaceDashboard();
                 showInfo(`⚠️ Dados de período diferente encontrados - ${getPeriodoFormatado()} está vazio`);
                 return { 
@@ -727,12 +691,9 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
  * Função para carregar mês específico (para integração com dashboard.js)
  */
 async function carregarMesEspecifico(ano, mes) {
-    console.log(`📅 Carregando mês específico: ${mes}/${ano}`);
     
     // 🛑 BLOQUEAR se já estiver carregando
     if (isLoadingFromServer) {
-        console.log('⏭️ Troca de mês bloqueada - carregamento em andamento');
-        console.log('⏭️ HUD permanecerá bloqueado até que termine');
         return { success: false, error: 'Aguarde o carregamento atual' };
     }
     
@@ -744,7 +705,6 @@ async function carregarMesEspecifico(ano, mes) {
     
     // FORÇAR SALVAMENTO DO MÊS ANTERIOR SE HOUVER ALTERAÇÕES
     if (alteracoesNaoSalvas && !isSavingToSupabase) {
-        console.log('💾 Salvando mês anterior antes de trocar...');
         await saveDashboardToSupabase(true);
         // Aguardar um pouco para garantir que salvou
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -783,7 +743,6 @@ async function carregarMesEspecifico(ano, mes) {
  * Função para salvar mês específico (para integração com dashboard.js)
  */
 async function salvarMesEspecifico(ano, mes) {
-    console.log(`📅 Salvando mês específico: ${mes}/${ano}`);
     
     // Atualizar variáveis globais
     anoSelecionado = ano;
@@ -801,7 +760,6 @@ async function salvarMesEspecifico(ano, mes) {
  * LIMPAR completamente a interface do dashboard
  */
 function limparInterfaceDashboard() {
-    console.log('🧹 LIMPANDO TODA A INTERFACE DO DASHBOARD...');
     
     // Verificar se o dashboard existe antes de limpar
     const dashboardContent = document.getElementById('dashboardContent');
@@ -826,7 +784,6 @@ function limparInterfaceDashboard() {
             if (!isCleaning) {
                 return originalCalc();
             }
-            console.log('⏸️ calc() bloqueado durante limpeza');
         };
     }
     
@@ -844,7 +801,6 @@ function limparInterfaceDashboard() {
             while (tabela.firstChild) {
                 tabela.removeChild(tabela.firstChild);
             }
-            console.log(`✅ Limpa: ${seletor}`);
         }
     });
     
@@ -854,7 +810,6 @@ function limparInterfaceDashboard() {
         const elemento = document.getElementById(id);
         if (elemento) {
             elemento.textContent = 'R$ 0,00';
-            console.log(`✅ Zerado: ${id}`);
         }
     });
     
@@ -886,7 +841,6 @@ function limparInterfaceDashboard() {
             }
             
             // Executar calc() para atualizar tudo
-            console.log('🧮 Executando calc() após limpeza...');
             if (typeof window.calc === 'function') {
                 window.calc();
             }
@@ -896,8 +850,6 @@ function limparInterfaceDashboard() {
         setTimeout(() => {
             retomarAutoSave();
         }, 500);
-        
-        console.log('✅ Interface completamente limpa e pronta para novo mês!');
     }, 100);
 }
 
@@ -909,7 +861,6 @@ function limparInterfaceDashboard() {
  * Coletar dados da interface
  */
 function collectDashboardData() {
-    console.log('📋 COLETANDO DADOS...');
     
     const data = {
         rendas: [],
@@ -934,7 +885,6 @@ function collectDashboardData() {
                 }
             }
         });
-        console.log(`📈 ${data.rendas.length} rendas coletadas`);
     }
     
     // 2. DESPESAS
@@ -951,7 +901,6 @@ function collectDashboardData() {
                 }
             }
         });
-        console.log(`📉 ${data.despesas.length} despesas coletadas`);
     }
     
     // 3. INVESTIMENTOS
@@ -971,7 +920,6 @@ function collectDashboardData() {
                     }
                 }
             });
-            console.log(`🎯 ${data.investimentos.length} investimentos coletados`);
         }
     }
     
@@ -988,12 +936,6 @@ function collectDashboardData() {
         despesa: getElementValue('totalDespesa'),
         saldo: getElementValue('saldo')
     };
-    
-    console.log('📦 RESUMO:', {
-        rendas: data.rendas.length,
-        despesas: data.despesas.length,
-        investimentos: data.investimentos.length
-    });
     
     return data;
 }

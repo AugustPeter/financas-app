@@ -4,8 +4,6 @@
  * Detecta desconexões, sincroniza dados automaticamente e oferece retry
  */
 
-console.log('🔗 connection-monitor.js carregado');
-
 const ConnectionMonitor = {
     // Estado
     isOnline: navigator.onLine,
@@ -25,7 +23,6 @@ const ConnectionMonitor = {
      * Inicializar monitor
      */
     init() {
-        console.log('🚀 Inicializando Connection Monitor...');
         
         // Monitorar status online/offline do navegador
         window.addEventListener('online', () => this.handleOnline());
@@ -36,8 +33,6 @@ const ConnectionMonitor = {
         
         // Iniciar heartbeat
         this.startHeartbeat();
-        
-        console.log('✅ Connection Monitor inicializado');
     },
     
     /**
@@ -98,7 +93,6 @@ const ConnectionMonitor = {
             
             // Se voltou online após desconexão, sincronizar
             if (wasDisconnected && this.onConnectionRestored) {
-                console.log('🔄 Conexão restaurada - disparando sincronização...');
                 this.onConnectionRestored();
             }
             
@@ -111,7 +105,6 @@ const ConnectionMonitor = {
             
             // Se perdeu conexão recentemente
             if (wasConnected && this.onConnectionLost) {
-                console.log('❌ Conexão perdida:', error.message);
                 this.onConnectionLost();
             }
             
@@ -132,8 +125,6 @@ const ConnectionMonitor = {
         this.reconnectAttempts++;
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // Backoff exponencial
         
-        console.log(`🔄 Tentativa ${this.reconnectAttempts}/${this.maxReconnectAttempts} em ${delay}ms...`);
-        
         setTimeout(() => {
             this.checkConnection();
         }, delay);
@@ -143,7 +134,6 @@ const ConnectionMonitor = {
      * Handle quando voltar online
      */
     handleOnline() {
-        console.log('🌐 Navegador online');
         this.isOnline = true;
         this.reconnectAttempts = 0;
         
@@ -158,7 +148,6 @@ const ConnectionMonitor = {
      * Handle quando ficar offline
      */
     handleOffline() {
-        console.log('📴 Navegador offline');
         this.isOnline = false;
         this.isConnectedToSupabase = false;
         
@@ -176,7 +165,6 @@ const ConnectionMonitor = {
     handleBeforeUnload(event) {
         // Verificar se há alterações não salvas
         if (window.alteracoesNaoSalvas) {
-            console.log('⚠️ Alterações não salvas detectadas - tentando salvar...');
             
             // Forçar salvamento síncrono se possível
             const savedData = this.captureDataBeforeUnload();
@@ -189,8 +177,7 @@ const ConnectionMonitor = {
                         ? `${window.mesSelecionado}-${window.anoSelecionado}`
                         : null
                 }));
-                
-                console.log('💾 Dados salvos em localStorage como backup');
+
             }
             
             // Tentar salvar de forma assíncrona
@@ -202,16 +189,13 @@ const ConnectionMonitor = {
                     event.preventDefault();
                     
                     savePromise.then(() => {
-                        console.log('✅ Dados salvos antes de descarregar');
                         window.location.reload(true);
                     }).catch((err) => {
-                        console.log('⚠️ Falha ao salvar:', err);
                         window.location.reload(true);
                     });
                     
                     return;
                 } catch (err) {
-                    console.log('⚠️ Erro ao tentar salvar:', err);
                 }
             }
         }
@@ -245,7 +229,6 @@ const ConnectionMonitor = {
             
             // Usar backup se foi criado nos últimos 30 minutos
             if (now - backupTime < 30 * 60 * 1000) {
-                console.log('🔄 Restaurando dados de backup...');
                 
                 // Aplicar dados ao interface
                 if (typeof applyDashboardData === 'function' && backup.data) {
@@ -259,7 +242,6 @@ const ConnectionMonitor = {
                 
                 // Limpar backup
                 localStorage.removeItem('pendingSave');
-                console.log('✅ Dados restaurados e sincronizados');
                 return true;
             }
         } catch (error) {
@@ -287,5 +269,3 @@ const ConnectionMonitor = {
 document.addEventListener('DOMContentLoaded', () => {
     ConnectionMonitor.init();
 });
-
-console.log('✅ connection-monitor.js pronto');

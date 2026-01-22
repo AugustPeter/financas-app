@@ -1,7 +1,5 @@
 // js/auth.js - Gerenciamento de autenticação com Supabase
 
-console.log('🔐 auth.js carregado');
-
 // ============================================
 // FUNÇÕES DE AUTENTICAÇÃO
 // ============================================
@@ -22,7 +20,6 @@ async function checkAuth() {
 }
 
 async function signIn(email, password) {
-    console.log('🔑 Tentando login com:', email);
     try {
         const { data, error } = await window.supabase.auth.signInWithPassword({
             email: email.trim(),
@@ -32,7 +29,6 @@ async function signIn(email, password) {
             console.error('❌ Erro no login:', error.message);
             return { success: false, error: error.message };
         }
-        console.log('✅ Login realizado:', data.user.email);
         return { success: true, user: data.user, session: data.session };
     } catch (err) {
         console.error('❌ Erro inesperado no signIn:', err);
@@ -41,7 +37,6 @@ async function signIn(email, password) {
 }
 
 async function signUp(email, password) {
-    console.log('📝 Registrando novo usuário:', email);
     try {
         if (!window.supabase || !window.supabase.auth) {
             throw new Error('Supabase não disponível');
@@ -63,7 +58,6 @@ async function signUp(email, password) {
             console.error('❌ Erro no registro:', error.message);
             return { success: false, error: error.message, code: error.code };
         }
-        console.log('✅ Registro realizado:', data.user?.email);
         return { success: true, user: data.user, requiresEmailConfirmation: data.user?.identities?.length === 0 };
     } catch (err) {
         console.error('❌ Erro inesperado no signUp:', err);
@@ -72,7 +66,6 @@ async function signUp(email, password) {
 }
 
 async function signOut() {
-    console.log('🚪 Fazendo logout...');
     try {
         if (!window.supabase || !window.supabase.auth) {
             throw new Error('Supabase não disponível');
@@ -82,7 +75,6 @@ async function signOut() {
             console.error('❌ Erro no logout:', error.message);
             return { success: false, error: error.message };
         }
-        console.log('✅ Logout realizado com sucesso');
         return { success: true };
     } catch (err) {
         console.error('❌ Erro inesperado no signOut:', err);
@@ -91,7 +83,6 @@ async function signOut() {
 }
 
 async function checkSupabaseConnection() {
-    console.log('🔗 Testando conexão com Supabase...');
     try {
         if (!window.supabase) {
             return { connected: false, error: 'Biblioteca Supabase não carregou' };
@@ -99,7 +90,6 @@ async function checkSupabaseConnection() {
         const { data, error } = await window.supabase.auth.getSession();
         if (error) {
             if (error.message.includes('session')) {
-                console.log('⚠️ Sem sessão ativa (normal)');
                 return { connected: true, hasSession: false };
             }
             return { connected: false, error: error.message };
@@ -116,7 +106,6 @@ async function checkSupabaseConnection() {
 // ============================================
 
 function showAppContent() {
-    console.log("📱 Mostrando conteúdo do app...");
     const loginScreen = document.getElementById('loginScreen');
     if (loginScreen) {
         loginScreen.style.display = 'none';
@@ -131,7 +120,6 @@ function showAppContent() {
 }
 
 function showLoginScreen() {
-    console.log('🖥️ Mostrando tela de login...');
     document.body.classList.add('login-active');
     const appContent = document.getElementById('appContent');
     if (appContent) {
@@ -444,7 +432,6 @@ function showAuthMessage(message, type) {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Iniciando autenticação...');
     
     const connection = await checkSupabaseConnection();
     if (!connection.connected) {
@@ -455,18 +442,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const session = await checkAuth();
     if (session) {
-        console.log('✅ Usuário logado');
         showAppContent();
         createLogoutButton();
         window.dispatchEvent(new Event('userLoggedIn'));
     } else {
-        console.log('👤 Mostrando login');
         showLoginScreen();
     }
     
     // Ouvir mudanças de autenticação
     window.supabase?.auth.onAuthStateChange((event, session) => {
-        console.log('🔄 Auth mudou:', event);
         if (event === 'SIGNED_IN') {
             showAppContent();
             createLogoutButton();
@@ -477,5 +461,3 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
-
-console.log('✅ auth.js pronto');

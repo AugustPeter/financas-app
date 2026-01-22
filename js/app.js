@@ -131,24 +131,20 @@
 
       // Se já tem conteúdo renderizado, não renderiza novamente
       if (dashboardContent.querySelector('#renda')) {
-        console.log('✅ Dashboard já está renderizado');
         AppCache.isDashboardLoading = false;
         return;
       }
 
       // Renderizar o dashboard (dados já foram carregados por supabase-data.js)
       if (typeof loadDashboardContent === 'function') {
-        console.log('🎨 Renderizando dashboard...');
         loadDashboardContent();
       } else {
         // Aguardar um pouco caso os scripts ainda estejam carregando
-        console.log('⏳ Aguardando loadDashboardContent carregar...');
         let attempts = 0;
         const waitForDashboard = setInterval(() => {
           attempts++;
           if (typeof loadDashboardContent === 'function') {
             clearInterval(waitForDashboard);
-            console.log('🎨 Renderizando dashboard (após espera)...');
             loadDashboardContent();
           } else if (attempts > 10) {
             clearInterval(waitForDashboard);
