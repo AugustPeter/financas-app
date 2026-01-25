@@ -1,6 +1,6 @@
 // js/dashboard.js - VERSÃO CORRIGIDA COM SUPABASE-DATA.JS
 console.log('📊 dashboard.js carregando...');
-let isSaving = false;
+
 // Flag para saber se já foi renderizado
 let dashboardAlreadyRendered = false;
 
@@ -132,30 +132,6 @@ function loadDashboardContent() {
     calc();
     // Carregamento delegado ao HUD
   }, 100);
-}
-
-// Gerar gráfico inicial
-function generateInitialChart() {
-  if (typeof Chart === 'undefined' || !document.getElementById('grafico')) return;
-  
-  // Extração otimizada de valores
-  const parseCardValue = (id) => parseFloat(
-    document.getElementById(id).textContent.replace(/[^\d,]/g, '').replace(',', '.')
-  ) || 0;
-  
-  const valores = {
-    renda: parseCardValue('totalRenda'),
-    despesa: parseCardValue('totalDespesa'),
-    invest: parseCardValue('totalInvest'),
-    saldo: parseCardValue('saldo')
-  };
-  
-  // Chamar função de atualização
-  if (typeof updateChart === 'function') {
-    updateChart(valores.renda, valores.despesa, valores.invest, valores.saldo);
-  } else {
-    createAlternativeChart(valores.renda, valores.despesa, valores.invest, valores.saldo);
-  }
 }
 
 // Gráfico alternativo caso sua função não exista
@@ -326,109 +302,8 @@ function createPermanentMonthHUD() {
 // Configurar funcionalidade do HUD
 let hudSetupDone = false;
 
-function setupHUDfunctionality() {
-    if (hudSetupDone) return;
-    
-    const monthSelect = document.getElementById('hudMonth');
-    const yearSelect = document.getElementById('hudYear');
-    
-    if (!monthSelect || !yearSelect) {
-        setTimeout(setupHUDfunctionality, 500);
-        return;
-    }
-    
-    // Configurar valores atuais
-    const now = new Date();
-    monthSelect.value = now.getMonth();
-    yearSelect.value = now.getFullYear();
-    
-    // Botão CARREGAR
-    const loadBtn = document.getElementById('hudLoadBtn');
-    if (loadBtn && !loadBtn.hasAttribute('data-hud-configured')) {
-        loadBtn.setAttribute('data-hud-configured', 'true');
-        loadBtn.onclick = async function() {
-            const monthIndex = document.getElementById('hudMonth').value;
-            const year = document.getElementById('hudYear').value;
-            const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
-                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-        
-        const selectedMonth = `${months[monthIndex]}-${year}`;
-        const mesNumero = parseInt(monthIndex) + 1;
-        
-        console.log(`📥 Carregando dados de ${selectedMonth}...`);
-        
-        // Animação
-        const originalText = this.innerHTML;
-        const originalBg = this.style.background;
-        this.innerHTML = '⏳';
-        this.disabled = true;
-        
-        try {
-            let result;
-            
-            if (typeof carregarMesEspecifico === 'function') {
-                console.log('📥 Usando carregarMesEspecifico()');
-                result = await carregarMesEspecifico(parseInt(year), mesNumero);
-            }
-            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.carregarMes) {
-                console.log('📥 Usando window.supabaseData.carregarMes()');
-                result = await window.supabaseData.carregarMes(parseInt(year), mesNumero);
-            }
-            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.load) {
-                console.log('📥 Usando window.supabaseData.load()');
-                window.supabaseData.setPeriodo(parseInt(year), mesNumero);
-                result = await window.supabaseData.load();
-            }
-            else {
-                throw new Error('Sistema de carregamento não disponível');
-            }
-            
-            // 🔑 AGUARDAR 2 SEGUNDOS ANTES DE MOSTRAR TOAST (DOM precisa reconstruir)
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            if (result && result.success) {
-                if (result.empty) {
-                    limparDashboard();
-                    this.innerHTML = '📭';
-                    this.style.background = '#f59e0b';
-                    showToast(`📭 ${selectedMonth} - Mês sem dados`, 'info');
-                } else {
-                    this.innerHTML = '✅';
-                    this.style.background = '#059669';
-                    showToast(`Dados de ${selectedMonth} carregados!`, 'success');
-                }
-            } else {
-                limparDashboard();
-                throw new Error(result ? result.error : 'Nenhum dado encontrado');
-            }
-        } catch (error) {
-            console.error('Erro ao carregar:', error);
-            limparDashboard();
-            
-            this.innerHTML = '📭';
-            this.style.background = '#f59e0b';
-            
-            // 🔑 TAMBÉM AGUARDAR AQUI
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (error.message.includes('Nenhum dado') || error.message.includes('nenhum dado')) {
-                showToast(`📭 ${selectedMonth} - Mês sem dados salvos`, 'info');
-            } else {
-                showToast(`Erro: ${error.message}`, 'warning');
-            }
-        }
-        finally {
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.style.background = originalBg;
-                this.disabled = false;
-            }, 1500);
-        }
-    };
-    }
-
-    function limparDashboard() {
-    
+// Função limparDashboard - definida fora para estar disponível globalmente
+function limparDashboard() {
     try {
         // Limpar todas as tabelas
         ['renda', 'despesa', 'invest'].forEach(tipo => {
@@ -458,7 +333,7 @@ function setupHUDfunctionality() {
         setTimeout(() => {
             if (typeof addRow === 'function') {
                 addRow('renda', '', 0);
-                addRow('despesa', '', 0);
+                addRow('despesa', '', 0, false);
             }
             if (typeof addInvest === 'function') {
                 addInvest('', 0, 0);
@@ -475,96 +350,25 @@ function setupHUDfunctionality() {
         console.error('❌ Erro ao limpar dashboard:', error);
     }
 }
-    
-    window.limparDashboard = limparDashboard;
-  
 
-    const saveBtn = document.getElementById('hudSaveBtn');
-if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
-    saveBtn.setAttribute('data-hud-configured', 'true');
-    let lastSaveTime = 0; // CORRIGIDO: variável no escopo correto
+// Expor globalmente imediatamente
+window.limparDashboard = limparDashboard;
+
+function setupHUDfunctionality() {
+    if (hudSetupDone) return;
     
-    saveBtn.onclick = async function(e) {
-        // 🛑 BLOQUEAR MÚLTIPLOS CLIQUES
-        const now = Date.now();
-        if (isSaving || (now - lastSaveTime) < 3500) {
-            console.log('⚠️ Salvamento já em andamento, ignorando novo clique');
-            if ((now - lastSaveTime) < 3500) {
-                console.log(`⏳ Aguarde ${Math.ceil((lastSaveTime + 3500 - now) / 1000)}s`);
-            }
-            return;
-        }
-        
-        e.preventDefault();
-        e.stopPropagation();
-        isSaving = true;
-        lastSaveTime = now;
-        
-        console.log('💾 Botão Salvar clicado');
-        
-        const monthIndex = document.getElementById('hudMonth').value;
-        const year = document.getElementById('hudYear').value;
-        const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
-                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-        
-        const selectedMonth = `${months[monthIndex]}-${year}`;
-        const mesNumero = parseInt(monthIndex) + 1;
-        
-        console.log(`💾 Salvando dados em ${selectedMonth} (mês ${mesNumero}/${year})...`);
-        
-        // Animação
-        const originalText = this.innerHTML;
-        const originalBg = this.style.background;
-        this.innerHTML = '⏳ Salvando...';
-        this.style.background = '#f59e0b';
-        this.disabled = true;
-        
-        try {
-            let result;
-            
-            if (typeof salvarMesEspecifico === 'function') {
-                console.log('💾 Usando salvarMesEspecifico()');
-                result = await salvarMesEspecifico(parseInt(year), mesNumero);
-            }
-            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.salvarMes) {
-                console.log('💾 Usando window.supabaseData.salvarMes()');
-                result = await window.supabaseData.salvarMes(parseInt(year), mesNumero);
-            }
-            else if (typeof window.supabaseData !== 'undefined' && window.supabaseData.save) {
-                console.log('💾 Usando window.supabaseData.save()');
-                window.supabaseData.setPeriodo(parseInt(year), mesNumero);
-                result = await window.supabaseData.save();
-            }
-            else {
-                throw new Error('Sistema de salvamento não disponível');
-            }
-            
-            if (result && result.success) {
-                this.innerHTML = '✅ Salvo!';
-                this.style.background = '#059669';
-                showToast(`Dados salvos em ${selectedMonth}!`, 'success');
-            } else {
-                throw new Error(result ? result.error : 'Erro ao salvar');
-            }
-            
-        } catch (error) {
-            console.error('Erro ao salvar:', error);
-            this.innerHTML = '❌ Erro!';
-            this.style.background = '#dc2626';
-            showToast(`Erro ao salvar: ${error.message}`, 'error');
-        }
-        finally {
-            // 🔓 LIBERAR O BLOQUEIO APÓS 3.5 SEGUNDOS (TEMPO SUFICIENTE)
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.style.background = originalBg;
-                this.disabled = false;
-                isSaving = false;  // ← LIBERADO AQUI
-                console.log('✅ Botão Salvar liberado para novo salvamento');
-            }, 3500);  // ← AUMENTADO PARA 3.5 SEGUNDOS
-        }
-    };
-}
+    const monthSelect = document.getElementById('hudMonth');
+    const yearSelect = document.getElementById('hudYear');
+    
+    if (!monthSelect || !yearSelect) {
+        setTimeout(setupHUDfunctionality, 500);
+        return;
+    }
+    
+    // Configurar valores atuais
+    const now = new Date();
+    monthSelect.value = now.getMonth();
+    yearSelect.value = now.getFullYear();
     
     // Quando mudar mês/ano
     const monthEl = document.getElementById('hudMonth');
@@ -574,16 +378,27 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
         monthEl.setAttribute('data-hud-configured', 'true');
         yearEl.setAttribute('data-hud-configured', 'true');
         
+        // 🔒 Guardar último valor válido para poder reverter
+        let lastValidMonth = monthEl.value;
+        let lastValidYear = yearEl.value;
+        let isUpdating = false; // Flag local para evitar chamadas simultâneas
+        
         const updateDisplay = async () => {
-            // 🛑 Bloquear completamente se já está carregando
-            if (window.isLoadingFromServer || window.hudBloqueado) {
-                console.log('⏭️ Carregamento bloqueado - operação em andamento');
+            // 🛑 Bloquear completamente se já está carregando ou atualizando
+            if (isUpdating || window.isLoadingFromServer || window.hudBloqueado) {
+                console.log('⏭️ Carregamento bloqueado - revertendo seletores');
                 // Reverter seletores para valor anterior
-                const monthIndex = parseInt(monthEl.value);
-                const year = parseInt(yearEl.value);
-                // NÃO fazer nada
+                monthEl.value = lastValidMonth;
+                yearEl.value = lastValidYear;
                 return;
             }
+            
+            // 🔒 Marcar que está atualizando
+            isUpdating = true;
+            
+            // 🔒 Desabilitar selects durante carregamento
+            monthEl.disabled = true;
+            yearEl.disabled = true;
             
             const monthIndex = parseInt(monthEl.value);
             const year = parseInt(yearEl.value);
@@ -592,10 +407,28 @@ if (saveBtn && !saveBtn.hasAttribute('data-hud-configured')) {
             
             console.log(`📅 Período selecionado: ${months[monthIndex]}/${year}`);
             
-            // 🚀 CARREGAMENTO ao mudar período
-            console.log('🔄 Carregando dados automaticamente...');
-            if (typeof carregarMesEspecifico === 'function') {
-                await carregarMesEspecifico(year, monthIndex + 1);
+            try {
+                // 🚀 CARREGAMENTO ao mudar período
+                console.log('🔄 Carregando dados automaticamente...');
+                if (typeof carregarMesEspecifico === 'function') {
+                    await carregarMesEspecifico(year, monthIndex + 1);
+                }
+                
+                // ✅ Sucesso - atualizar últimos valores válidos
+                lastValidMonth = monthEl.value;
+                lastValidYear = yearEl.value;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar:', error);
+                // Reverter em caso de erro
+                monthEl.value = lastValidMonth;
+                yearEl.value = lastValidYear;
+            } finally {
+                // 🔓 Reabilitar selects após 0.5s extra
+                await new Promise(resolve => setTimeout(resolve, 500));
+                monthEl.disabled = false;
+                yearEl.disabled = false;
+                isUpdating = false;
             }
         };
         
@@ -632,7 +465,6 @@ function initMonthHUD() {
 
 // Gerenciador de inicialização único
 let hudInitialized = false;
-let isAutoLoadingData = false; // Flag para evitar múltiplos carregamentos
 
 function initializeHUDSystem() {
     if (hudInitialized) {
@@ -691,17 +523,20 @@ function addRow(tipo, descricao = '', valor = 0, pago = false) {
   const tbody = document.querySelector(`#${tipo} tbody`);
   if (!tbody) return;
   
+  // Escapar descricao para prevenir XSS
+  const safeDescricao = typeof escapeHTML === 'function' ? escapeHTML(descricao) : String(descricao || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
   const tr = document.createElement('tr');
   
   if (tipo === 'renda') {
     tr.innerHTML = `
-      <td><input class="table-input" value="${descricao}" oninput="calc()" placeholder="Descrição"></td>
+      <td><input class="table-input" value="${safeDescricao}" oninput="calc()" placeholder="Descrição"></td>
       <td><input class="table-input" type="number" value="${valor}" oninput="calc()" placeholder="0.00" step="0.01"></td>
       <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
     `;
   } else if (tipo === 'despesa') {
     tr.innerHTML = `
-      <td><input class="table-input" value="${descricao}" oninput="calc()" placeholder="Descrição"></td>
+      <td><input class="table-input" value="${safeDescricao}" oninput="calc()" placeholder="Descrição"></td>
       <td><input class="table-input" type="number" value="${valor}" oninput="calc()" placeholder="0.00" step="0.01"></td>
       <td><input type="checkbox" class="check-pago" ${pago ? 'checked' : ''} onchange="calc()"></td>
       <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
@@ -718,9 +553,12 @@ function addInvest(nome = '', aporte = 0, meta = 0) {
   const tbody = document.querySelector('#invest tbody');
   if (!tbody) return;
   
+  // Escapar nome para prevenir XSS
+  const safeNome = typeof escapeHTML === 'function' ? escapeHTML(nome) : String(nome || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input class="table-input" value="${nome}" oninput="calc()" placeholder="Nome"></td>
+    <td><input class="table-input" value="${safeNome}" oninput="calc()" placeholder="Nome"></td>
     <td><input class="table-input" type="number" value="${aporte}" oninput="calc()" placeholder="Aporte" step="0.01"></td>
     <td><input class="table-input" type="number" value="${meta}" oninput="calc()" placeholder="Meta" step="0.01"></td>
     <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
@@ -788,7 +626,7 @@ function calc() {
   // Atualizar gráfico
   if (typeof updateChart === 'function') {
     updateChart(totalRenda, totalDespesa, totalInvest, saldoValor);
-  } else if (window.dashboardChart) {
+  } else if (window.dashboardChart && window.dashboardChart.data && window.dashboardChart.data.datasets && window.dashboardChart.data.datasets[0]) {
     window.dashboardChart.data.datasets[0].data = [totalRenda, totalDespesa, totalInvest, saldoValor];
     window.dashboardChart.data.datasets[0].backgroundColor[3] = saldoValor >= 0 
       ? 'rgba(34, 197, 94, 0.7)' 
@@ -818,12 +656,15 @@ function updateCounts() {
   });
 }
 
-// Formatar moeda
+// Formatar moeda - usa função global se disponível
 function formatCurrency(value) {
+  if (window.formatCurrency && window.formatCurrency !== formatCurrency) {
+    return window.formatCurrency(value);
+  }
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(value);
+  }).format(value || 0);
 }
 
 // ============================================
@@ -837,36 +678,8 @@ window.calc = calc;
 window.updateCounts = updateCounts;
 window.formatCurrency = formatCurrency;
 window.loadDashboardContent = loadDashboardContent;
-window.limparDashboard = function() {
-    
-    // Limpar todas as tabelas
-    ['renda', 'despesa', 'invest'].forEach(tipo => {
-        const tbody = document.querySelector(`#${tipo} tbody`);
-        if (tbody) {
-            tbody.innerHTML = '';
-        }
-    });
-    
-    // Zerar totais - COM VERIFICAÇÃO
-    const totalRendaEl = document.getElementById('totalRenda');
-    const totalDespesaEl = document.getElementById('totalDespesa');
-    const totalInvestEl = document.getElementById('totalInvest');
-    const saldoEl = document.getElementById('saldo');
-    
-    if (totalRendaEl) totalRendaEl.textContent = 'R$ 0,00';
-    if (totalDespesaEl) totalDespesaEl.textContent = 'R$ 0,00';
-    if (totalInvestEl) totalInvestEl.textContent = 'R$ 0,00';
-    if (saldoEl) saldoEl.textContent = 'R$ 0,00';
-    
-    // Adicionar linhas vazias
-    setTimeout(() => {
-        addRow('renda', '', 0);
-        addRow('despesa', '', 0);
-        addInvest('', 0, 0);
-        updateCounts();
-        calc();
-    }, 100);
-};
+window.limparDashboard = limparDashboard;
+window.toggleSection = toggleSection;
 
 // ================================================
 // FUNÇÕES DE COLLAPSE/EXPAND PARA RENDAS E DESPESAS

@@ -1,19 +1,24 @@
 // Service Worker para PWA
-const CACHE_NAME = 'financas-app-v1';
+const CACHE_NAME = 'financas-app-v12';
 const urlsToCache = [
   '/',
   '/index.html',
   '/styles/main.css',
   '/styles/tabs.css',
   '/styles/responsive.css',
+  '/styles/mobile-optimization.css',
+  '/js/utils.js',
   '/js/app.js',
-  '/js/data.js',
+  '/js/auth.js',
   '/js/tabs.js',
   '/js/dashboard.js',
   '/js/transactions.js',
   '/js/investments.js',
   '/js/reports.js',
   '/js/charts.js',
+  '/js/supabase-data.js',
+  '/js/supabase-config.js',
+  '/js/connection-monitor.js',
   '/manifest.json'
 ];
 
@@ -48,6 +53,35 @@ self.addEventListener('activate', event => {
 
 // Interceptar requisições
 self.addEventListener('fetch', event => {
+  // Para requisições de API do Supabase, sempre buscar da rede
+  if (event.request.url.includes('supabase.co')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // Para arquivos JS, usar network-first (evitar cache desatualizado)
+  if (event.request.url.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Atualizar cache com a nova versão
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Se falhar, tentar do cache
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+  
+  // Para outros recursos, usar cache-first
   event.respondWith(
     caches.match(event.request)
       .then(response => {

@@ -599,28 +599,6 @@ tr:has(.check-pago:checked) {
   }
 }
 
-/* Offline indicator - Mais visível */
-.offline-indicator {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(90deg, var(--red) 0%, #dc2626 100%);
-  color: white;
-  text-align: center;
-  padding: 0.875rem;
-  font-size: 0.95rem;
-  font-weight: 500;
-  z-index: 10001;
-  transform: translateY(-100%);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
-}
-
-.offline-indicator.show {
-  transform: translateY(0);
-}
-
 /* Transações List - Mais elegante */
 .transactions-list {
   display: flex;
@@ -811,19 +789,6 @@ body {
   outline-offset: 2px;
 }
 
-/* Loading skeleton */
-.skeleton {
-  background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 8px;
-}
-
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
 /* Estilo para esconder os conteúdos das abas por padrão */
 .tab-content {
     display: none; /* Esconde todos os conteúdos inicialmente */
@@ -884,24 +849,6 @@ body {
     gap: 6px;
     transition: all 0.2s;
     font-weight: 500;
-}
-
-#hudLoadBtn {
-    background: #3b82f6;
-}
-
-#hudLoadBtn:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-}
-
-#hudSaveBtn {
-    background: #10b981;
-}
-
-#hudSaveBtn:hover {
-    background: #059669;
-    transform: translateY(-1px);
 }
 
 #monthHUD button:disabled {
@@ -1159,79 +1106,4 @@ body.login-active {
 
 body.login-active #app {
   display: none;
-}
-
-/* Adicione ao seu arquivo CSS principal */
-.hud-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin: 20px auto;
-    padding: 12px 20px;
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border-radius: 12px;
-    border: 1px solid #334155;
-    max-width: 500px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 100;
-}
-
-.hud-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.hud-label span:first-child {
-    color: #e2e8f0;
-    font-weight: 500;
-    font-size: 14px;
-}
-
-.hud-label span:last-child {
-    color: #cbd5e1;
-    font-size: 14px;
-}
-
-.hud-selectors {
-    display: flex;
-    gap: 8px;
-}
-
-.hud-select {
-    padding: 6px 12px;
-    background: #0f172a;
-    color: white;
-    border: 1px solid #475569;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    min-width: 100px;
-}
-
-.hud-buttons {
-    display: flex;
-    gap: 8px;
-}
-
-.hud-btn {
-    padding: 6px 14px;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-
-.load-btn {
-    background: #3b82f6;
-}
-
-.load-btn:hover {
-    background: #2563eb;
 }

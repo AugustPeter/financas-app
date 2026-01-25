@@ -188,14 +188,10 @@ const ConnectionMonitor = {
                     // Aguardar um pouco antes de descarregar
                     event.preventDefault();
                     
-                    savePromise.then(() => {
-                        window.location.reload(true);
-                    }).catch((err) => {
-                        window.location.reload(true);
-                    });
-                    
-                    return;
+                    // Não bloquear - deixar a página descarregar normalmente
+                    // Os dados já foram salvos no localStorage como backup
                 } catch (err) {
+                    console.warn('⚠️ Erro no save antes do unload:', err);
                 }
             }
         }

@@ -2,8 +2,12 @@
 // FUNÇÕES DE INVESTIMENTOS
 // ============================================
 
-let investmentChart = null;
-let contributionChart = null;
+// Helper formatCurrency local (fallback)
+function safeFormatCurrency(value) {
+  if (typeof formatCurrency === 'function') return formatCurrency(value);
+  if (typeof window.formatCurrency === 'function') return window.formatCurrency(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+}
 
 // Carregar conteúdo de investimentos
 function loadInvestmentsContent() {
@@ -102,14 +106,30 @@ function setupInvestmentsListeners() {
   }
 }
 
+// Helper para obter dados de investimentos do DOM atual
+function getInvestmentsFromDOM() {
+  const rows = document.querySelectorAll('#invest tbody tr');
+  const investments = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs.length >= 3) {
+      const nome = inputs[0].value || '';
+      const aporte = parseFloat(inputs[1].value) || 0;
+      const meta = parseFloat(inputs[2].value) || 0;
+      investments.push([nome, aporte, meta]);
+    }
+  });
+  return investments;
+}
+
 // Carregar tabela de investimentos
 function loadInvestmentsTable() {
-  const db = getDB();
-  const monthData = db[mesAtual];
+  // Usar dados do DOM do dashboard (invest)
+  const investments = getInvestmentsFromDOM();
   const tableBody = document.querySelector('#investTable tbody');
   if (!tableBody) return;
   
-  if (!monthData || !monthData.invest || monthData.invest.length === 0) {
+  if (!investments || investments.length === 0) {
     tableBody.innerHTML = `
       <tr>
         <td colspan="5" style="text-align: center; padding: 40px; color: var(--muted);">
@@ -121,16 +141,18 @@ function loadInvestmentsTable() {
   }
   
   tableBody.innerHTML = '';
-  monthData.invest.forEach(([name, aporte, meta], index) => {
+  investments.forEach(([name, aporte, meta], index) => {
     const aporteNum = parseFloat(aporte || 0);
     const metaNum = parseFloat(meta || 0);
     const progresso = metaNum > 0 ? (aporteNum / metaNum) * 100 : 0;
+    // Escapar nome para prevenir XSS
+    const safeName = typeof escapeHTML === 'function' ? escapeHTML(name) : (name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${name || 'Investimento'}</strong></td>
-      <td>${formatCurrency(aporteNum)}</td>
-      <td>${formatCurrency(metaNum)}</td>
+      <td><strong>${safeName || 'Investimento'}</strong></td>
+      <td>${safeFormatCurrency(aporteNum)}</td>
+      <td>${safeFormatCurrency(metaNum)}</td>
       <td>
         <div style="background: var(--border); height: 8px; border-radius: 4px; overflow: hidden;">
           <div style="width: ${Math.min(progresso, 100)}%; height: 100%; background: var(--primary);"></div>
@@ -155,52 +177,70 @@ function showAddInvestmentModal() {
   const meta = parseFloat(prompt('Meta (R$):') || 0);
   
   // Verificar se estamos na tab correta
-  if (currentTab !== 'dashboard') {
-    showTab('dashboard');
+  if (window.currentTab !== 'dashboard') {
+    if (typeof showTab === 'function') showTab('dashboard');
     setTimeout(() => {
-      addInvest(name, 0, meta);
+      if (typeof addInvest === 'function' || typeof window.addInvest === 'function') {
+        (window.addInvest || addInvest)(name, 0, meta);
+      }
     }, 100);
   } else {
-    addInvest(name, 0, meta);
+    if (typeof addInvest === 'function' || typeof window.addInvest === 'function') {
+      (window.addInvest || addInvest)(name, 0, meta);
+    }
   }
   
   // Atualizar tabela de investimentos se estiver na tab de investimentos
-  if (currentTab === 'investments') {
+  if (window.currentTab === 'investments') {
     setTimeout(() => {
       loadInvestmentsTable();
     }, 200);
   }
+  
+  if (typeof showToast === 'function') showToast('Investimento adicionado!', 'success');
 }
 
-// Adicionar aporte a um investimento
+// Adicionar aporte a um investimento existente no DOM
 function addContribution(index) {
   const valor = parseFloat(prompt('Valor do aporte (R$):') || 0);
   if (valor <= 0) {
-    showToast('Valor inválido', 'error');
+    if (typeof showToast === 'function') showToast('Valor inválido', 'error');
     return;
   }
   
-  const db = getDB();
-  const monthData = db[mesAtual];
+  // Acessar a linha de investimento no DOM do dashboard
+  const investRows = document.querySelectorAll('#invest tbody tr');
+  const row = investRows[index];
   
-  if (!monthData || !monthData.invest || !monthData.invest[index]) {
-    showToast('Investimento não encontrado', 'error');
+  if (!row) {
+    if (typeof showToast === 'function') showToast('Investimento não encontrado', 'error');
     return;
   }
   
-  const current = parseFloat(monthData.invest[index][1] || 0);
-  monthData.invest[index][1] = (current + valor).toString();
-  saveDB(db);
+  // Pegar o input de aporte (segunda coluna)
+  const aporteInput = row.querySelector('td:nth-child(2) input');
+  if (!aporteInput) {
+    if (typeof showToast === 'function') showToast('Campo de aporte não encontrado', 'error');
+    return;
+  }
   
-  // Recarregar os dados
-  loadMonth();
+  // Atualizar o valor
+  const currentValue = parseFloat(aporteInput.value) || 0;
+  aporteInput.value = (currentValue + valor).toFixed(2);
+  
+  // Disparar recalculação
+  if (typeof calc === 'function' || typeof window.calc === 'function') {
+    (window.calc || calc)();
+  }
   
   // Atualizar a tabela de investimentos se estiver visível
-  if (currentTab === 'investments') {
-    loadInvestmentsTable();
+  if (window.currentTab === 'investments') {
+    setTimeout(() => {
+      loadInvestmentsTable();
+    }, 100);
   }
   
-  showToast('Aporte registrado!', 'success');
+  if (typeof showToast === 'function') showToast('Aporte registrado!', 'success');
 }
 
 // Executar simulação de investimento
@@ -239,19 +279,25 @@ function runSimulation() {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
         <div>
           <div style="font-size: 12px; color: var(--muted);">Total Investido</div>
-          <div style="font-size: 18px; font-weight: 600;">${formatCurrency(totalInvested)}</div>
+          <div style="font-size: 18px; font-weight: 600;">${safeFormatCurrency(totalInvested)}</div>
         </div>
         <div>
           <div style="font-size: 12px; color: var(--muted);">Rendimentos</div>
-          <div style="font-size: 18px; font-weight: 600; color: var(--green);">${formatCurrency(earnings)}</div>
+          <div style="font-size: 18px; font-weight: 600; color: var(--green);">${safeFormatCurrency(earnings)}</div>
         </div>
         <div style="grid-column: span 2;">
           <div style="font-size: 12px; color: var(--muted);">Valor Final</div>
-          <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${formatCurrency(total)}</div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${safeFormatCurrency(total)}</div>
         </div>
       </div>
     `;
   }
   
-  showToast('Simulação concluída!', 'success');
+  if (typeof showToast === 'function') showToast('Simulação concluída!', 'success');
 }
+
+// Exportar funções globalmente para onclick handlers
+window.addContribution = addContribution;
+window.showAddInvestmentModal = showAddInvestmentModal;
+window.runSimulation = runSimulation;
+window.loadInvestmentsContent = loadInvestmentsContent;

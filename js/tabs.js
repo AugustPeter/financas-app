@@ -2,16 +2,37 @@
 // FUNÇÕES DE NAVEGAÇÃO ENTRE TABS
 // ============================================
 
+// Variáveis globais de estado
+let currentTab = 'dashboard';
+let mesAtual = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+
+// Expor globalmente
+Object.defineProperty(window, 'currentTab', {
+  get: () => currentTab,
+  set: (v) => { currentTab = v; }
+});
+Object.defineProperty(window, 'mesAtual', {
+  get: () => mesAtual,
+  set: (v) => { mesAtual = v; }
+});
+
 // Mostrar uma tab específica
 function showTab(tabName) {
+  // Helper local para capitalizar (caso utils.js não tenha carregado)
+  const capitalize = (str) => {
+    if (typeof capitalizeFirst === 'function') return capitalizeFirst(str);
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+  
   // Atualizar tab ativa
   document.querySelectorAll('.tab, .nav-item').forEach(el => {
     el.classList.remove('active');
   });
   
   // Ativar a tab correta
-  document.getElementById(`tab${capitalizeFirst(tabName)}`)?.classList.add('active');
-  document.getElementById(`nav${capitalizeFirst(tabName)}`)?.classList.add('active');
+  document.getElementById(`tab${capitalize(tabName)}`)?.classList.add('active');
+  document.getElementById(`nav${capitalize(tabName)}`)?.classList.add('active');
   
   // Esconder todos os conteúdos
   document.querySelectorAll('.tab-content').forEach(content => {
@@ -19,7 +40,10 @@ function showTab(tabName) {
   });
   
   // Mostrar conteúdo da tab selecionada
-  document.getElementById(`${tabName}Content`).classList.add('active');
+  const tabContent = document.getElementById(`${tabName}Content`);
+  if (tabContent) {
+    tabContent.classList.add('active');
+  }
   
   // Atualizar título do app
   const titles = {
@@ -28,45 +52,15 @@ function showTab(tabName) {
     investments: 'Investimentos',
     reports: 'Relatórios'
   };
-  document.getElementById('appTitle').textContent = titles[tabName];
-  
-  // Atualizar filtros no header baseado na tab
-  updateHeaderFilters(tabName);
+  const appTitle = document.getElementById('appTitle');
+  if (appTitle) {
+    appTitle.textContent = titles[tabName];
+  }
   
   // Carregar conteúdo específico da tab
   loadTabContent(tabName);
   
   currentTab = tabName;
-}
-
-// Atualizar filtros no header
-function updateHeaderFilters(tab) {
-  const filtersContainer = document.getElementById('headerFilters');
-  if (!filtersContainer) return;
-  
-  if (tab === 'dashboard') {
-    filtersContainer.innerHTML = `
-      <div class="month-selector">
-        <button onclick="changeMonth(-1)" title="Mês anterior">←</button>
-        <select id="mes" onchange="changeMonth(0)">
-          <option>Janeiro</option><option>Fevereiro</option><option>Março</option>
-          <option>Abril</option><option>Maio</option><option>Junho</option>
-          <option>Julho</option><option>Agosto</option><option>Setembro</option>
-          <option>Outubro</option><option>Novembro</option><option>Dezembro</option>
-        </select>
-        <button onclick="changeMonth(1)" title="Próximo mês">→</button>
-      </div>
-      <button class="btn" onclick="toggleDark()" id="themeToggle">🌙</button>
-    `;
-    
-    // Definir o mês atual no select
-    const mesSelect = document.getElementById('mes');
-    if (mesSelect) mesSelect.value = mesAtual;
-  } else {
-    filtersContainer.innerHTML = `
-      <button class="btn" onclick="toggleDark()" id="themeToggle">🌙</button>
-    `;
-  }
 }
 
 // Carregar conteúdo da tab
@@ -87,23 +81,63 @@ function loadTabContent(tabName) {
   }
 }
 
-// Configurar event listeners para tabs
-function setupTabListeners() {
-  // Tabs desktop
-  const tabIds = ['Dashboard', 'Transactions', 'Investments', 'Reports'];
-  tabIds.forEach(tabId => {
-    const tab = document.getElementById(`tab${tabId}`);
-    if (tab) {
-      tab.addEventListener('click', () => showTab(tabId.toLowerCase()));
-    }
-  });
+// Função para alternar tema claro/escuro
+function toggleDark() {
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
   
-  // Tabs mobile
-  const navIds = ['Dashboard', 'Transactions', 'Investments', 'Reports'];
-  navIds.forEach(navId => {
-    const nav = document.getElementById(`nav${navId}`);
-    if (nav) {
-      nav.addEventListener('click', () => showTab(navId.toLowerCase()));
-    }
-  });
+  // Salvar preferência
+  localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+  
+  // Atualizar ícone do botão
+  const themeBtn = document.getElementById('themeToggle');
+  if (themeBtn) {
+    themeBtn.textContent = isDark ? '☀️' : '🌙';
+  }
 }
+
+// Função para mudar o mês
+function changeMonth(direction) {
+  const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const mesSelect = document.getElementById('mes');
+  if (!mesSelect) return;
+  
+  let currentIndex = meses.indexOf(mesSelect.value);
+  if (currentIndex === -1) currentIndex = new Date().getMonth();
+  
+  if (direction !== 0) {
+    // Navegação com setas
+    currentIndex += direction;
+    if (currentIndex < 0) currentIndex = 11;
+    if (currentIndex > 11) currentIndex = 0;
+    mesSelect.value = meses[currentIndex];
+  }
+  
+  // Atualizar mesAtual global
+  window.mesAtual = mesSelect.value;
+  
+  // Carregar dados do mês selecionado
+  if (typeof window.carregarMesEspecifico === 'function') {
+    window.carregarMesEspecifico(mesSelect.value);
+  } else if (typeof window.loadDashboardContent === 'function') {
+    window.loadDashboardContent();
+  }
+}
+
+// Aplicar tema salvo ao carregar
+function applyStoredTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'true';
+  if (isDark) {
+    document.body.classList.add('dark');
+    const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) themeBtn.textContent = '☀️';
+  }
+}
+
+// Exportar funções globalmente
+window.showTab = showTab;
+window.loadTabContent = loadTabContent;
+window.toggleDark = toggleDark;
+window.changeMonth = changeMonth;
+window.applyStoredTheme = applyStoredTheme;

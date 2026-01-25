@@ -137,35 +137,43 @@ function showLoginScreen() {
 
 function createLoginScreen() {
     const loginHTML = `
-        <div id="loginScreen" class="login-container">
+        <div id="loginScreen" class="login-container" role="main" aria-label="Tela de login">
             <div class="login-box">
                 <div class="logo">
-                    <div class="logo-icon">💰</div>
+                    <div class="logo-icon" aria-hidden="true">💰</div>
                     <h1 class="login-title">Finanças App</h1>
                     <p class="login-subtitle">Controle suas finanças de forma simples</p>
                 </div>
                 
-                <div id="loginForm" class="form-active">
-                    <input type="email" id="email" class="login-input" placeholder="seu@email.com" autocomplete="email">
-                    <input type="password" id="password" class="login-input" placeholder="Sua senha" autocomplete="current-password">
-                    <button onclick="handleLogin()" class="login-button">Entrar</button>
+                <form id="loginForm" class="form-active" onsubmit="event.preventDefault(); handleLogin();" aria-label="Formulário de login">
+                    <label for="email" class="sr-only">Email</label>
+                    <input type="email" id="email" class="login-input" placeholder="seu@email.com" autocomplete="email" required aria-required="true">
+                    
+                    <label for="password" class="sr-only">Senha</label>
+                    <input type="password" id="password" class="login-input" placeholder="Sua senha" autocomplete="current-password" required aria-required="true">
+                    
+                    <button type="submit" class="login-button" aria-label="Fazer login">Entrar</button>
                     
                     <div class="login-links">
-                        <p>Não tem conta? <a onclick="showSignupForm()" class="login-link">Cadastre-se</a></p>
+                        <p>Não tem conta? <a href="#" onclick="event.preventDefault(); showSignupForm()" class="login-link" role="button">Cadastre-se</a></p>
                     </div>
-                </div>
+                </form>
                 
-                <div id="signupForm" class="form-switch">
-                    <input type="email" id="signupEmail" class="login-input" placeholder="seu@email.com" autocomplete="email">
-                    <input type="password" id="signupPassword" class="login-input" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password">
-                    <button onclick="handleSignup()" class="signup-button">Criar Conta</button>
+                <form id="signupForm" class="form-switch" onsubmit="event.preventDefault(); handleSignup();" aria-label="Formulário de cadastro">
+                    <label for="signupEmail" class="sr-only">Email para cadastro</label>
+                    <input type="email" id="signupEmail" class="login-input" placeholder="seu@email.com" autocomplete="email" required aria-required="true">
+                    
+                    <label for="signupPassword" class="sr-only">Senha para cadastro</label>
+                    <input type="password" id="signupPassword" class="login-input" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password" minlength="6" required aria-required="true">
+                    
+                    <button type="submit" class="signup-button" aria-label="Criar conta">Criar Conta</button>
                     
                     <div class="login-links">
-                        <p>Já tem conta? <a onclick="showLoginForm()" class="login-link">Faça login</a></p>
+                        <p>Já tem conta? <a href="#" onclick="event.preventDefault(); showLoginForm()" class="login-link" role="button">Faça login</a></p>
                     </div>
-                </div>
+                </form>
                 
-                <div id="authMessage" class="auth-message"></div>
+                <div id="authMessage" class="auth-message" role="alert" aria-live="polite"></div>
             </div>
         </div>
     `;
@@ -175,6 +183,17 @@ function createLoginScreen() {
     if (!document.querySelector('#login-styles')) {
         const styles = `
             <style>
+                .sr-only {
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    padding: 0;
+                    margin: -1px;
+                    overflow: hidden;
+                    clip: rect(0, 0, 0, 0);
+                    white-space: nowrap;
+                    border: 0;
+                }
                 .login-container {
                     min-height: 100vh;
                     display: flex;
@@ -402,17 +421,29 @@ window.handleLogout = async function() {
 };
 
 window.showSignupForm = function() {
-    document.getElementById('loginForm').classList.remove('form-active');
-    document.getElementById('loginForm').classList.add('form-switch');
-    document.getElementById('signupForm').classList.remove('form-switch');
-    document.getElementById('signupForm').classList.add('form-active');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    if (loginForm) {
+        loginForm.classList.remove('form-active');
+        loginForm.classList.add('form-switch');
+    }
+    if (signupForm) {
+        signupForm.classList.remove('form-switch');
+        signupForm.classList.add('form-active');
+    }
 };
 
 window.showLoginForm = function() {
-    document.getElementById('signupForm').classList.remove('form-active');
-    document.getElementById('signupForm').classList.add('form-switch');
-    document.getElementById('loginForm').classList.remove('form-switch');
-    document.getElementById('loginForm').classList.add('form-active');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    if (signupForm) {
+        signupForm.classList.remove('form-active');
+        signupForm.classList.add('form-switch');
+    }
+    if (loginForm) {
+        loginForm.classList.remove('form-switch');
+        loginForm.classList.add('form-active');
+    }
 };
 
 function showAuthMessage(message, type) {
@@ -420,10 +451,23 @@ function showAuthMessage(message, type) {
     if (!messageEl) return;
     messageEl.textContent = message;
     messageEl.className = 'auth-message';
-    messageEl.classList.add(type === 'error' ? 'auth-error' : 'auth-success');
+    if (type === 'error') {
+        messageEl.classList.add('auth-error');
+    } else if (type === 'success') {
+        messageEl.classList.add('auth-success');
+    } else {
+        // Para 'info', usa estilo de success mas com cor diferente
+        messageEl.classList.add('auth-success');
+        messageEl.style.background = 'rgba(59, 130, 246, 0.2)';
+        messageEl.style.color = '#3b82f6';
+        messageEl.style.border = '1px solid rgba(59, 130, 246, 0.3)';
+    }
     messageEl.style.display = 'block';
     setTimeout(() => {
         messageEl.style.display = 'none';
+        messageEl.style.background = '';
+        messageEl.style.color = '';
+        messageEl.style.border = '';
     }, 5000);
 }
 
@@ -431,7 +475,9 @@ function showAuthMessage(message, type) {
 // INICIALIZAÇÃO (UMA ÚNICA VEZ)
 // ============================================
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Função principal de inicialização
+async function initAuth() {
+    console.log('🔐 Iniciando autenticação...');
     
     const connection = await checkSupabaseConnection();
     if (!connection.connected) {
@@ -460,4 +506,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.dispatchEvent(new Event('userLoggedOut'));
         }
     });
+}
+
+// Aguardar Supabase estar pronto antes de inicializar
+document.addEventListener('DOMContentLoaded', () => {
+    // Se Supabase já está pronto, inicializar imediatamente
+    if (window.supabaseReady && window.supabase) {
+        initAuth();
+    } else {
+        // Caso contrário, aguardar evento supabaseReady
+        window.addEventListener('supabaseReady', initAuth);
+        
+        // Timeout de segurança: se após 5s ainda não inicializou, mostrar login
+        setTimeout(() => {
+            if (!window.supabaseReady) {
+                console.warn('⚠️ Timeout aguardando Supabase, mostrando login...');
+                showLoginScreen();
+            }
+        }, 5000);
+    }
 });
+
+console.log('✅ auth.js carregado');

@@ -2,8 +2,57 @@
 // FUNÇÕES DE RELATÓRIOS
 // ============================================
 
-let wealthChart = null;
-let forecastChart = null;
+// Helper formatCurrency local (fallback)
+function safeFormatCurrencyReport(value) {
+  if (typeof formatCurrency === 'function') return formatCurrency(value);
+  if (typeof window.formatCurrency === 'function') return window.formatCurrency(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+}
+
+// Helper: Coletar dados atuais do DOM
+function collectCurrentMonthData() {
+  const data = { renda: [], despesa: [], invest: [], saldo: 0 };
+  
+  // Renda
+  document.querySelectorAll('#renda tbody tr').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs.length >= 2) {
+      data.renda.push([inputs[0].value || '', parseFloat(inputs[1].value) || 0]);
+    }
+  });
+  
+  // Despesa
+  document.querySelectorAll('#despesa tbody tr').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const checkbox = row.querySelector('.check-pago');
+    if (inputs.length >= 2) {
+      data.despesa.push([inputs[0].value || '', parseFloat(inputs[1].value) || 0, checkbox?.checked || false]);
+    }
+  });
+  
+  // Investimentos
+  document.querySelectorAll('#invest tbody tr').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs.length >= 3) {
+      data.invest.push([inputs[0].value || '', parseFloat(inputs[1].value) || 0, parseFloat(inputs[2].value) || 0]);
+    }
+  });
+  
+  // Calcular saldo
+  const totalRenda = data.renda.reduce((sum, item) => sum + item[1], 0);
+  const totalDespesa = data.despesa.reduce((sum, item) => sum + item[1], 0);
+  const totalInvest = data.invest.reduce((sum, item) => sum + item[1], 0);
+  data.saldo = totalRenda - totalDespesa - totalInvest;
+  
+  return data;
+}
+
+// Helper: Obter todos os dados (atualmente só do mês atual via DOM)
+function getReportsData() {
+  // Retorna um objeto com o mês atual
+  const mesAtual = window.mesAtual || new Date().toLocaleDateString('pt-BR', { month: 'long' });
+  return { [mesAtual]: collectCurrentMonthData() };
+}
 
 // Carregar conteúdo de relatórios
 function loadReportsContent() {
@@ -125,7 +174,7 @@ function setupReportsListeners() {
 
 // Atualizar relatórios
 function updateReports() {
-  const db = getDB();
+  const db = getReportsData();
   const months = Object.keys(db);
   
   if (months.length === 0) return;
@@ -157,13 +206,14 @@ function updateReports() {
   });
   
   // Atualizar UI
+  const avgValue = months.length > 0 ? (totalIncome - totalExpense) / months.length : 0;
   const elements = {
-    'reportMaxIncome': formatCurrency(maxIncome),
-    'reportMaxExpense': formatCurrency(maxExpense),
-    'reportAvgMonth': formatCurrency((totalIncome - totalExpense) / months.length),
-    'reportAvgSavings': formatCurrency((totalIncome - totalExpense) / months.length),
-    'reportBestMonth': bestMonth,
-    'reportBestAmount': formatCurrency(bestAmount)
+    'reportMaxIncome': safeFormatCurrencyReport(maxIncome),
+    'reportMaxExpense': safeFormatCurrencyReport(maxExpense),
+    'reportAvgMonth': safeFormatCurrencyReport(avgValue),
+    'reportAvgSavings': safeFormatCurrencyReport(avgValue),
+    'reportBestMonth': bestMonth || '-',
+    'reportBestAmount': bestAmount === -Infinity ? 'R$ 0,00' : safeFormatCurrencyReport(bestAmount)
   };
   
   Object.keys(elements).forEach(id => {
@@ -174,18 +224,22 @@ function updateReports() {
   });
 }
 
-// Soma de array
+// Soma de array - com verificação de índice
 function sumArray(arr, index) {
-  return arr.reduce((sum, item) => sum + parseFloat(item[index] || 0), 0);
+  if (!Array.isArray(arr)) return 0;
+  return arr.reduce((sum, item) => {
+    if (!item || typeof item[index] === 'undefined') return sum;
+    return sum + (parseFloat(item[index]) || 0);
+  }, 0);
 }
 
 // Exportar dados
 function exportData(format) {
-  const db = getDB();
+  const db = getReportsData();
   
   // Verificar se há dados para exportar
   if (Object.keys(db).length === 0) {
-    showToast('Nenhum dado para exportar', 'error');
+    if (typeof showToast === 'function') showToast('Nenhum dado para exportar', 'error');
     return;
   }
   
@@ -239,10 +293,10 @@ function exportData(format) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    showToast(`Dados exportados como ${format.toUpperCase()}`, 'success');
+    if (typeof showToast === 'function') showToast(`Dados exportados como ${format.toUpperCase()}`, 'success');
   } catch (error) {
     console.error('Erro ao exportar dados:', error);
-    showToast('Erro ao exportar dados', 'error');
+    if (typeof showToast === 'function') showToast('Erro ao exportar dados', 'error');
   }
 }
 
@@ -258,7 +312,7 @@ function addGoal() {
   
   const value = parseFloat(prompt('Valor da meta (R$):') || 0);
   if (value <= 0) {
-    showToast('Valor da meta inválido', 'error');
+    if (typeof showToast === 'function') showToast('Valor da meta inválido', 'error');
     return;
   }
   
@@ -273,7 +327,7 @@ function addGoal() {
   
   localStorage.setItem('financeGoals', JSON.stringify(goals));
   updateGoalsList();
-  showToast('Meta adicionada!', 'success');
+  if (typeof showToast === 'function') showToast('Meta adicionada!', 'success');
 }
 
 // Atualizar lista de metas
@@ -295,6 +349,8 @@ function updateGoalsList() {
   goalsList.innerHTML = '';
   goals.forEach((g, i) => {
     const progress = g.value > 0 ? (g.current / g.value) * 100 : 0;
+    // Escapar nome da meta para prevenir XSS
+    const safeGoal = typeof escapeHTML === 'function' ? escapeHTML(g.goal) : (g.goal || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const goalEl = document.createElement('div');
     goalEl.className = 'fade-in';
     goalEl.style.cssText = `
@@ -305,14 +361,14 @@ function updateGoalsList() {
     `;
     goalEl.innerHTML = `
       <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-        <strong>${g.goal}</strong>
+        <strong>${safeGoal}</strong>
         <span>${progress.toFixed(1)}%</span>
       </div>
       <div style="background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
         <div style="width: ${Math.min(progress, 100)}%; height: 100%; background: var(--primary);"></div>
       </div>
       <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--muted);">
-        <span>${formatCurrency(g.current)} / ${formatCurrency(g.value)}</span>
+        <span>${safeFormatCurrencyReport(g.current)} / ${safeFormatCurrencyReport(g.value)}</span>
         <button class="btn-icon" onclick="addToGoal(${i})" style="font-size: 14px;">+ Adicionar</button>
       </div>
     `;
@@ -324,18 +380,24 @@ function updateGoalsList() {
 function addToGoal(index) {
   const amount = parseFloat(prompt('Valor a adicionar (R$):') || 0);
   if (amount <= 0) {
-    showToast('Valor inválido', 'error');
+    if (typeof showToast === 'function') showToast('Valor inválido', 'error');
     return;
   }
   
   const goals = JSON.parse(localStorage.getItem('financeGoals') || '[]');
   if (!goals[index]) {
-    showToast('Meta não encontrada', 'error');
+    if (typeof showToast === 'function') showToast('Meta não encontrada', 'error');
     return;
   }
   
   goals[index].current += amount;
   localStorage.setItem('financeGoals', JSON.stringify(goals));
   updateGoalsList();
-  showToast('Valor adicionado à meta!', 'success');
+  if (typeof showToast === 'function') showToast('Valor adicionado à meta!', 'success');
 }
+
+// Exportar funções globalmente para onclick handlers
+window.addToGoal = addToGoal;
+window.addGoal = addGoal;
+window.updateGoalsList = updateGoalsList;
+window.loadReportsContent = loadReportsContent;

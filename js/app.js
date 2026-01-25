@@ -110,9 +110,9 @@
   function loadTabContent(tabName) {
     switch (tabName) {
       case 'dashboard': loadDashboard(); break;
-      case 'transactions': if (typeof loadTransactions === 'function') loadTransactions(); break;
-      case 'investments': if (typeof loadInvestments === 'function') loadInvestments(); break;
-      case 'reports': if (typeof loadReports === 'function') loadReports(); break;
+      case 'transactions': if (typeof loadTransactionsContent === 'function') loadTransactionsContent(); break;
+      case 'investments': if (typeof loadInvestmentsContent === 'function') loadInvestmentsContent(); break;
+      case 'reports': if (typeof loadReportsContent === 'function') loadReportsContent(); break;
     }
   }
 
@@ -171,46 +171,20 @@
     }
   }
 
-  // Funções leves para conteúdo de fallback
-  function loadTransactions() {
-    const content = document.getElementById('transactionsContent');
-    if (!content) return;
-    content.innerHTML = `<div style="padding:2rem;text-align:center"><h2>💸 Transações</h2><p>Em desenvolvimento</p></div>`;
-  }
-
-  function loadInvestments() {
-    const content = document.getElementById('investmentsContent');
-    if (!content) return;
-    content.innerHTML = `<div style="padding:2rem;text-align:center"><h2>📈 Investimentos</h2><p>Em desenvolvimento</p></div>`;
-  }
-
-  function loadReports() {
-    const content = document.getElementById('reportsContent');
-    if (!content) return;
-    content.innerHTML = `<div style="padding:2rem;text-align:center"><h2>📋 Relatórios</h2><p>Em desenvolvimento</p></div>`;
-  }
-
-  // Toast utilitário
-  function showToast(message, duration = 3000) {
-    AppCache.init();
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.style.display = 'block';
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => { toast.style.display = 'none'; }, duration);
-  }
-
   // Expor funções úteis para o resto do app
   window.switchTab = switchTab;
   window.loadDashboard = loadDashboard;
-  window.showToast = showToast;
 
   // Inicialização quando DOM pronto — auth.js deve decidir visibilidade
   document.addEventListener('DOMContentLoaded', () => {
     AppCache.init();
     createDashboardStructure();
     setupNavigation();
+
+    // Aplicar tema salvo
+    if (typeof window.applyStoredTheme === 'function') {
+      window.applyStoredTheme();
+    }
 
     // Chamar loadDashboard mas sem forçar se auth.js vai controlar a exibição
     loadDashboard();

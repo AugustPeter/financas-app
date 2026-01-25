@@ -85,43 +85,53 @@ function setupTransactionsListeners() {
 
 // Carregar transações
 function loadTransactions() {
-  const db = getDB();
   const transactionsList = document.getElementById('transactionsList');
   if (!transactionsList) return;
   
   let allTransactions = [];
   
-  // Coletar todas as transações de todos os meses
-  Object.keys(db).forEach(month => {
-    const monthData = db[month];
-    
-    // Rendas
-    if (monthData.renda) {
-      monthData.renda.forEach(([desc, value]) => {
-        // Renda não tem status de pago
+  // Coletar transações diretamente das tabelas do dashboard
+  const mesAtual = typeof getPeriodoFormatado === 'function' ? getPeriodoFormatado() : 'Mês Atual';
+  
+  // Rendas
+  const rendaRows = document.querySelectorAll('#renda tbody tr');
+  rendaRows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs.length >= 2) {
+      const desc = inputs[0].value || '';
+      const value = parseFloat(inputs[1].value) || 0;
+      if (desc || value > 0) {
         allTransactions.push({
-          month,
+          month: mesAtual,
           type: 'renda',
           desc,
-          value: parseFloat(value) || 0,
-          pago: false, // Renda sempre considerada como "recebida"
-          date: monthData.updatedAt
+          value,
+          pago: true, // Renda sempre considerada como "recebida"
+          date: new Date().toISOString()
         });
-      });
+      }
     }
-    
-    // Despesas
-    if (monthData.despesa) {
-      monthData.despesa.forEach(([desc, value, pago]) => {
+  });
+  
+  // Despesas
+  const despesaRows = document.querySelectorAll('#despesa tbody tr');
+  despesaRows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    if (inputs.length >= 2) {
+      const desc = inputs[0].value || '';
+      const value = parseFloat(inputs[1].value) || 0;
+      const pago = checkbox ? checkbox.checked : false;
+      if (desc || value > 0) {
         allTransactions.push({
-          month,
+          month: mesAtual,
           type: 'despesa',
           desc,
-          value: parseFloat(value) || 0,
-          pago: pago === 'true' || pago === true,
-          date: monthData.updatedAt
+          value,
+          pago,
+          date: new Date().toISOString()
         });
-      });
+      }
     }
   });
   
@@ -135,9 +145,11 @@ function loadTransactions() {
     filteredTransactions = filteredTransactions.filter(t => t.type === filterType.value);
   }
   
-  if (filterMonth && filterMonth.value === 'current') {
-    filteredTransactions = filteredTransactions.filter(t => t.month === mesAtual);
-  }
+  // Filtro de mês (current = mês atual do HUD)
+  // Como agora coletamos do dashboard, já são do mês atual, então não precisa filtrar
+  // if (filterMonth && filterMonth.value === 'current') {
+  //   filteredTransactions = filteredTransactions; // Já são do mês atual
+  // }
   
   // Ordenar por data (mais recente primeiro)
   filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -156,12 +168,15 @@ function loadTransactions() {
   filteredTransactions.forEach(trans => {
     const transEl = document.createElement('div');
     transEl.className = 'transaction-item fade-in';
+    // Escapar dados do usuário para prevenir XSS
+    const safeDesc = typeof escapeHTML === 'function' ? escapeHTML(trans.desc) : (trans.desc || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeMonth = typeof escapeHTML === 'function' ? escapeHTML(trans.month) : (trans.month || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     transEl.innerHTML = `
       <div class="transaction-info">
-        <div class="transaction-name">${trans.desc || 'Sem descrição'}</div>
+        <div class="transaction-name">${safeDesc || 'Sem descrição'}</div>
         <div style="display: flex; gap: 8px; margin-top: 4px;">
           <span class="transaction-category">${trans.type === 'renda' ? '💰 Renda' : '💸 Despesa'}</span>
-          <span class="transaction-category">${trans.month}</span>
+          <span class="transaction-category">${safeMonth}</span>
           ${trans.pago ? '<span class="transaction-category" style="color: var(--green);">✓ Pago</span>' : ''}
         </div>
       </div>
@@ -206,6 +221,7 @@ function addQuickTransaction() {
   value.value = '';
   
   // Atualizar lista de transações se estiver na tab de transações
+  const currentTab = window.appState?.currentTab || 'dashboard';
   if (currentTab === 'transactions') {
     setTimeout(() => {
       loadTransactions();
@@ -214,3 +230,8 @@ function addQuickTransaction() {
   
   showToast('Transação adicionada com sucesso!', 'success');
 }
+
+// Exportar funções globalmente
+window.loadTransactionsContent = loadTransactionsContent;
+window.loadTransactions = loadTransactions;
+window.addQuickTransaction = addQuickTransaction;

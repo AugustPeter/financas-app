@@ -159,20 +159,6 @@
   }
 }
 
-/* Indicador de tab ativa para mobile */
-.tab-indicator {
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--primary), var(--green));
-  border-radius: 3px;
-  transition: left 0.3s ease, width 0.3s ease;
-  z-index: 1;
-}
-
-
-
 .tabs {
   max-width: 1200px;
   margin: 0 auto;
@@ -227,32 +213,6 @@
   border-radius: 3px 3px 0 0;
 }
 
-/* Indicador de scroll para tabs */
-.tabs-wrapper {
-  position: relative;
-}
-
-.tabs-wrapper::before,
-.tabs-wrapper::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 30px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.tabs-wrapper::before {
-  left: 0;
-  background: linear-gradient(to right, #0f172a, transparent);
-}
-
-.tabs-wrapper::after {
-  right: 0;
-  background: linear-gradient(to left, #0f172a, transparent);
-}
-
 /* Tab indicator animation */
 @keyframes tabSlide {
   from {
@@ -265,60 +225,6 @@
 
 .tab.active {
   animation: tabSlide 0.3s ease-out;
-}
-
-/* Badge para contagem em tabs */
-.tab-badge {
-  background: #ef4444;
-  color: white;
-  font-size: 0.7rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 10px;
-  margin-left: 0.25rem;
-}
-
-/* Tab com ícone */
-.tab-icon {
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-}
-
-/* Tab disabled state */
-.tab:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tab:disabled:hover {
-  background: transparent;
-  color: #94a3b8;
-}
-
-/* Tab loading state */
-.tab.loading {
-  position: relative;
-  color: transparent;
-}
-
-.tab.loading::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
-  border: 2px solid #3b82f6;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: tabLoading 0.8s linear infinite;
-}
-
-@keyframes tabLoading {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
 }
 
 /* Mobile tabs enhancements */
@@ -357,10 +263,5 @@
     top: -3px;
     background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
     border-radius: 0 0 3px 3px;
-  }
-  
-  .tab-icon {
-    font-size: 1.25rem;
-    margin-bottom: 0.25rem;
   }
 }

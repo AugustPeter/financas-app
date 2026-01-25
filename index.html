@@ -7,13 +7,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <!-- Desabilitar cache -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
+  <meta name="description" content="Controle suas finanças pessoais de forma simples e eficiente">
   
   <title>Finanças App</title>
+  
+  <!-- Preload de recursos críticos -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://htixncglyuabopewnwpg.supabase.co" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   
   <!-- CSS Files -->
   <link rel="stylesheet" href="styles/main.css">
@@ -21,15 +22,11 @@
   <link rel="stylesheet" href="styles/responsive.css">
   <link rel="stylesheet" href="styles/mobile-optimization.css">
   
-  <script>
-    // Adicionar manifest apenas se não for file:// protocol
-    if (window.location.protocol !== 'file:') {
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = 'manifest.json';
-      document.head.appendChild(link);
-    }
-  </script>
+  <!-- Manifest para PWA -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Favicon (usa emoji como fallback se ícone não existir) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 
 </head>
 <body>
@@ -67,39 +64,33 @@
     </style>
   </div>
 
-  <!-- Scripts -->
+  <!-- CDNs externos - carregam primeiro (sem defer) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <!-- Configuração Supabase -->
-  <script>
-    const SUPABASE_URL = 'https://htixncglyuabopewnwpg.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aXhuY2dseXVhYm9wZXdud3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyMjcsImV4cCI6MjA4Mjk0ODIyN30.DuCO2Cv7j9vYBGyNMCWEtagAVrKv9uCTJoNXA1jMCa0';
-    
-    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('✅ Supabase configurado');
-  </script>
-  
-  <script>
-    // Timestamp + random para forçar cache bust agressivo
-    window.APP_VERSION = Date.now() + '-' + Math.random().toString(36).substring(7);
-  </script>
-  
-  <!-- Carregar auth.js PRIMEIRO -->
-  <script src="js/auth.js?v=1" defer></script>
-  
-  <!-- Depois os scripts principais em ordem (com cache bust agressivo) -->
-  <script>
-    const v = window.APP_VERSION;
-    document.write(`<script src="js/dashboard.js?v=${v}" defer><\/script>`);
-    document.write(`<script src="js/data.js?v=${v}" defer><\/script>`);
-    document.write(`<script src="js/charts.js?v=${v}" defer><\/script>`);
-    document.write(`<script src="js/supabase-data.js?v=${v}" defer><\/script>`);
-  </script>
-  
+  <!-- Configuração e Scripts da Aplicação (ordem importa!) -->
+  <script src="js/supabase-config.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/tabs.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/transactions.js" defer></script>
+  <script src="js/investments.js" defer></script>
+  <script src="js/reports.js" defer></script>
+  <script src="js/supabase-data.js" defer></script>
   <script src="js/app.js" defer></script>
-  
-  <!-- Connection Monitor -->
   <script src="js/connection-monitor.js" defer></script>
+  
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('✅ Service Worker registrado'))
+          .catch(err => console.warn('⚠️ SW não registrado:', err));
+      });
+    }
+  </script>
 </body>
 </html>

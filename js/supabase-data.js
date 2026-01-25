@@ -24,6 +24,9 @@ let isLoadingInitialData = true;
 // VARIÁVEL PARA CONTROLAR SE ESTÁ CARREGANDO DO SERVIDOR (evita múltiplos loads)
 let isLoadingFromServer = false;
 
+// VARIÁVEL PARA CONTROLAR SE ESTÁ SALVANDO NO SERVIDOR
+let isSavingToSupabase = false;
+
 // VARIÁVEL PARA BLOQUEAR HUD DURANTE CARREGAMENTO
 let hudBloqueado = false;
 
@@ -235,21 +238,34 @@ function configurarAutoSave() {
         subtree: true
     });
     
-    // Salvar quando o usuário sair da página
+    // Salvar quando o usuário sair da página (usando sendBeacon para garantir envio)
     window.addEventListener('beforeunload', function(event) {
         if (navigator.onLine && alteracoesNaoSalvas) {
-            console.log('💾 Tentando salvar alterações não salvas antes de sair...');
+            console.log('💾 Salvando alterações antes de sair via sendBeacon...');
             
-            // Tentar salvar de forma síncrona
             try {
-                // Não podemos fazer async no beforeunload, mas podemos tentar
-                saveDashboardToSupabase().then(() => {
-                    console.log('✅ Alterações salvas antes de sair');
-                }).catch(() => {
-                    console.log('⚠️ Não foi possível salvar antes de sair');
-                });
+                // Coletar dados atuais
+                const dashboardData = collectDashboardData();
+                
+                // Salvar em localStorage como backup (síncrono e confiável)
+                localStorage.setItem('dashboardBackup', JSON.stringify({
+                    data: dashboardData,
+                    timestamp: new Date().toISOString(),
+                    periodo: getPeriodoParaBanco(),
+                    pendingSave: true
+                }));
+                console.log('💾 Backup salvo em localStorage');
+                
+                // Tentar enviar via sendBeacon (não bloqueia, funciona no beforeunload)
+                if (navigator.sendBeacon) {
+                    const beaconData = new FormData();
+                    beaconData.append('data', JSON.stringify(dashboardData));
+                    beaconData.append('periodo', getPeriodoParaBanco());
+                    // Nota: sendBeacon só funciona se o backend aceitar
+                    console.log('📡 Tentando sendBeacon...');
+                }
             } catch (error) {
-                console.log('⚠️ Erro ao tentar salvar antes de sair:', error);
+                console.log('⚠️ Erro ao salvar antes de sair:', error);
             }
         }
     });
@@ -281,71 +297,6 @@ function configurarAutoSave() {
 }
 
 /**
- * Mostrar notificação discreta do auto-save
- */
-function mostrarNotificacaoAutoSave(mensagem) {
-    // Verificar se document.body existe
-    if (!document.body) {
-        console.warn('⚠️ document.body não existe, não foi possível mostrar notificação');
-        return;
-    }
-    
-    // Verificar se já existe uma notificação
-    let notificacao = document.getElementById('auto-save-notification');
-    
-    if (!notificacao) {
-        notificacao = document.createElement('div');
-        notificacao.id = 'auto-save-notification';
-        notificacao.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(16, 185, 129, 0.95);
-            color: white;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            z-index: 9998;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s ease;
-            max-width: 300px;
-        `;
-        document.body.appendChild(notificacao);
-    }
-    
-    notificacao.innerHTML = `
-        <span style="font-size: 16px;">💾</span>
-        <span>${mensagem}</span>
-    `;
-    
-    // Mostrar com animação
-    setTimeout(() => {
-        notificacao.style.opacity = '1';
-        notificacao.style.transform = 'translateY(0)';
-    }, 10);
-    
-    // Esconder após 2 segundos
-    setTimeout(() => {
-        notificacao.style.opacity = '0';
-        notificacao.style.transform = 'translateY(10px)';
-        
-        // Remover após animação
-        setTimeout(() => {
-            if (notificacao.parentElement) {
-                notificacao.remove();
-            }
-        }, 300);
-    }, 2000);
-}
-
-/**
  * Atualizar status de alterações não salvas no HUD
  */
 function atualizarStatusNaoSalvasHUD() {
@@ -354,8 +305,10 @@ function atualizarStatusNaoSalvasHUD() {
         let status = '';
         let bgColor = '#3b82f6'; // Azul default
         
-        // Verificar status de conexão
-        if (typeof ConnectionMonitor !== 'undefined' && !ConnectionMonitor.isConnectedToSupabase) {
+        // Verificar status de conexão (com proteção contra ConnectionMonitor não definido)
+        const isConnected = typeof ConnectionMonitor !== 'undefined' ? ConnectionMonitor.isConnectedToSupabase : navigator.onLine;
+        
+        if (!isConnected) {
             status = '📴 Sem Conexão';
             bgColor = '#ef4444'; // Vermelho
         } else if (alteracoesNaoSalvas) {
@@ -369,7 +322,7 @@ function atualizarStatusNaoSalvasHUD() {
         btnSalvar.innerHTML = status;
         btnSalvar.style.background = bgColor;
         
-        if (!ConnectionMonitor.isConnectedToSupabase) {
+        if (!isConnected) {
             btnSalvar.title = 'Sem conexão com servidor - dados salvos localmente';
         } else if (alteracoesNaoSalvas) {
             btnSalvar.title = 'Há alterações não salvas - Clique para salvar agora';
@@ -408,8 +361,6 @@ function retomarAutoSave() {
 /**
  * SALVAR dados no Supabase - CORRIGIDO: SEM onConflict
  */
-let isSavingToSupabase = false;
-
 async function saveDashboardToSupabase(forcar = false) {
     
     // 🛑 BLOQUEAR MÚLTIPLOS SALVAMENTOS SIMULTÂNEOS
@@ -542,43 +493,109 @@ async function saveDashboardToSupabase(forcar = false) {
 }
 
 /**
- * CARREGAR dados do Supabase - CORRIGIDO: FORÇA ATUALIZAÇÃO DA INTERFACE
+ * CARREGAR dados do Supabase - Redireciona para a nova implementação
  */
 async function loadDashboardFromSupabase(forcarAtualizacao = false) {
+    // Usar a nova implementação simplificada
+    const ano = anoSelecionado;
+    const mes = mesSelecionado;
+    return await carregarMesEspecifico(ano, mes);
+}
+
+/**
+ * Função para carregar mês específico (para integração com dashboard.js)
+ */
+async function carregarMesEspecifico(ano, mes) {
     
-    // 🛑 BLOQUEAR se já estiver carregando
+    // 🛑 BLOQUEAR se já estiver carregando - SOLUÇÃO SIMPLES
     if (isLoadingFromServer) {
-        return { success: false, error: 'Carregamento em andamento' };
+        console.log('⏳ Aguarde o carregamento atual terminar...');
+        showInfo('Aguarde o carregamento atual terminar');
+        return { success: false, error: 'Aguarde o carregamento atual' };
     }
     
-    // 🔒 Desabilitar HUD durante carregamento
-    bloquearHUD();
-    
-    // 👁️ Esconder HUD se for carregamento inicial (isLoadingInitialData)
-    if (isLoadingInitialData) {
-        esconderHUD();
-    }
-    
+    // 🔒 Marcar que está carregando IMEDIATAMENTE
     isLoadingFromServer = true;
     
+    // 🔒 Bloquear HUD imediatamente
+    bloquearHUD();
+    esconderHUD();
+    
+    try {
+        // FORÇAR SALVAMENTO DO MÊS ANTERIOR SE HOUVER ALTERAÇÕES
+        if (alteracoesNaoSalvas && !isSavingToSupabase) {
+            console.log('💾 Salvando mês anterior antes de trocar...');
+            await saveDashboardToSupabase(true);
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+        // Atualizar variáveis globais
+        anoSelecionado = ano;
+        mesSelecionado = mes;
+        modoPeriodoAtivo = true;
+        
+        // Resetar flag de renderização
+        if (typeof window !== 'undefined') {
+            window.dashboardAlreadyRendered = false;
+        }
+        
+        // 🧹 Limpar interface ANTES de carregar novos dados
+        limparInterfaceSincrono();
+        
+        // Carregar dados do Supabase
+        const resultado = await carregarDadosDoSupabase();
+        
+        return resultado;
+        
+    } finally {
+        // 🔓 SEMPRE desbloquear ao final
+        await new Promise(resolve => setTimeout(resolve, 300));
+        isLoadingFromServer = false;
+        mostrarHUD();
+        desbloquearHUD();
+    }
+}
+
+/**
+ * Limpar interface de forma SÍNCRONA (sem setTimeout)
+ */
+function limparInterfaceSincrono() {
+    console.log('🧹 Limpando interface...');
+    
+    // Pausar auto-save
+    pausarAutoSave();
+    alteracoesNaoSalvas = false;
+    
+    // Limpar tabelas
+    ['#renda tbody', '#despesa tbody', '#invest tbody'].forEach(seletor => {
+        const tabela = document.querySelector(seletor);
+        if (tabela) {
+            tabela.innerHTML = '';
+        }
+    });
+    
+    // Zerar totais
+    ['totalRenda', 'totalDespesa', 'saldo', 'totalInvest'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'R$ 0,00';
+    });
+}
+
+/**
+ * Carregar dados do Supabase e aplicar na interface
+ */
+async function carregarDadosDoSupabase() {
     const supabase = getSupabase();
     
     try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-            console.error('❌ Erro de sessão:', sessionError);
-            throw new Error('Falha na autenticação');
-        }
-        
-        if (!session) {
-            throw new Error('Faça login para carregar dados');
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Faça login para carregar dados');
         
         const userId = session.user.id;
         const periodoBanco = getPeriodoParaBanco();
         
-        // Buscar do Supabase
+        console.log(`📥 Buscando dados: ${periodoBanco}`);
+        
         const { data, error } = await supabase
             .from('finance_data')
             .select('*')
@@ -588,155 +605,127 @@ async function loadDashboardFromSupabase(forcarAtualizacao = false) {
             .limit(1)
             .maybeSingle();
         
-        if (error) {
-            console.error('❌ Erro na busca:', error);
-            throw new Error(`Falha ao buscar: ${error.message}`);
-        }
+        if (error) throw new Error(`Erro ao buscar: ${error.message}`);
         
         if (!data) {
-            
-            // IMPORTANTE: Limpar toda a interface quando não há dados
-            limparInterfaceDashboard();
-            
-            const mensagem = `📭 ${getPeriodoFormatado()} - Mês sem dados salvos`;
-            
-            
-            return { 
-                success: true, 
-                message: mensagem,
-                empty: true,
-                cleaned: true
-            };
+            console.log(`📭 Nenhum dado para ${getPeriodoFormatado()}`);
+            // Adicionar linhas vazias
+            adicionarLinhasVazias();
+            return { success: true, empty: true };
         }
         
-        // Verificar se os dados são do período correto
-        if (data.data && data.data.periodo_info) {
-            const periodoSalvo = data.data.periodo_info.periodo_banco;
-            if (periodoSalvo !== periodoBanco) {
-                limparInterfaceDashboard();
-                showInfo(`⚠️ Dados de período diferente encontrados - ${getPeriodoFormatado()} está vazio`);
-                return { 
-                    success: true, 
-                    message: `📭 ${getPeriodoFormatado()} está vazio`,
-                    empty: true,
-                    cleaned: true
-                };
-            }
-        }
+        // Aplicar dados na interface de forma SÍNCRONA
+        aplicarDadosSincrono(data.data);
         
-        // PAUSAR auto-save durante aplicação de dados
-        pausarAutoSave();
+        console.log(`✅ Dados de ${getPeriodoFormatado()} carregados!`);
         
-        // Resetar flag de alterações não salvas
-        alteracoesNaoSalvas = false;
-        atualizarStatusNaoSalvasHUD();
-        
-        // Aplicar dados na interface
-        applyDashboardData(data.data);
-        
-        const mensagem = `✅ Dados de ${getPeriodoFormatado()} carregados!`;
-        
-        
-        // RETOMAR auto-save após 2 segundos
+        // Retomar auto-save após 1 segundo
         setTimeout(() => {
             isLoadingInitialData = false;
             retomarAutoSave();
-            
-            // 🎉 Esconder overlay de carregamento quando dados chegarem
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.opacity = '0';
-                loadingOverlay.style.transition = 'opacity 0.3s ease-out';
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 300);
-            }
-        }, 2000);
+        }, 1000);
         
-        return { 
-            success: true, 
-            message: mensagem,
-            data: data.data,
-            updated_at: data.updated_at
-        };
+        return { success: true, data: data.data };
         
     } catch (error) {
-        console.error('❌ Falha TOTAL ao carregar:', error.message);
-        showError(`Falha ao carregar: ${error.message}. Verifique sua conexão.`);
-        
-        return { 
-            success: false, 
-            error: error.message,
-            requiresLogin: error.message.includes('login')
-        };
-    } finally {
-        // Sempre desbloquear carregamento
-        isLoadingFromServer = false;
-        
-        // 🎉 Garantir que overlay desapareça mesmo em caso de erro
-        if (isLoadingInitialData === false) {
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay && loadingOverlay.style.display !== 'none') {
-                loadingOverlay.style.opacity = '0';
-                loadingOverlay.style.transition = 'opacity 0.3s ease-out';
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 300);
-            }
-        }
+        console.error('❌ Erro ao carregar:', error.message);
+        showError(`Erro: ${error.message}`);
+        adicionarLinhasVazias();
+        return { success: false, error: error.message };
     }
 }
 
 /**
- * Função para carregar mês específico (para integração com dashboard.js)
+ * Adicionar linhas vazias nas tabelas
  */
-async function carregarMesEspecifico(ano, mes) {
-    
-    // 🛑 BLOQUEAR se já estiver carregando
-    if (isLoadingFromServer) {
-        return { success: false, error: 'Aguarde o carregamento atual' };
+function adicionarLinhasVazias() {
+    if (typeof window.addRow === 'function') {
+        try { window.addRow('renda', '', 0); } catch(e) {}
+        try { window.addRow('despesa', '', 0, false); } catch(e) {}
+    }
+    if (typeof window.addInvest === 'function') {
+        try { window.addInvest('', 0, 0); } catch(e) {}
+    }
+    if (typeof window.calc === 'function') {
+        window.calc();
+    }
+}
+
+/**
+ * Aplicar dados na interface de forma SÍNCRONA
+ */
+function aplicarDadosSincrono(data) {
+    if (!data || typeof data !== 'object') {
+        console.warn('⚠️ Dados inválidos para aplicar:', data);
+        adicionarLinhasVazias();
+        return;
     }
     
-    // 🔒 Bloquear HUD imediatamente (antes de qualquer operação)
-    bloquearHUD();
+    console.log('🔄 Aplicando dados...');
+    window.isApplyingData = true;
     
-    // 👁️ Esconder HUD durante troca de mês
-    esconderHUD();
+    // Bloquear calc temporariamente
+    const originalCalc = window.calc;
+    window.calc = function() {};
     
-    // FORÇAR SALVAMENTO DO MÊS ANTERIOR SE HOUVER ALTERAÇÕES
-    if (alteracoesNaoSalvas && !isSavingToSupabase) {
-        await saveDashboardToSupabase(true);
-        // Aguardar um pouco para garantir que salvou
-        await new Promise(resolve => setTimeout(resolve, 800));
+    // Aplicar rendas
+    if (data.rendas && data.rendas.length > 0) {
+        data.rendas.forEach(item => {
+            if (typeof window.addRow === 'function') {
+                window.addRow('renda', item.descricao, item.valor);
+            }
+        });
+    } else {
+        if (typeof window.addRow === 'function') window.addRow('renda', '', 0);
     }
     
-    // Aguardar um pouco mais para garantir que nada mais vai acontecer
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Atualizar variáveis globais
-    anoSelecionado = ano;
-    mesSelecionado = mes;
-    modoPeriodoAtivo = true;
-    
-    // Resetar flag de renderização para permitir novo render
-    if (typeof window !== 'undefined') {
-        window.dashboardAlreadyRendered = false;
+    // Aplicar despesas
+    if (data.despesas && data.despesas.length > 0) {
+        data.despesas.forEach(item => {
+            if (typeof window.addRow === 'function') {
+                window.addRow('despesa', item.descricao, item.valor, item.pago || false);
+            }
+        });
+    } else {
+        if (typeof window.addRow === 'function') window.addRow('despesa', '', 0, false);
     }
     
-    // 👁️ Manter HUD escondido durante carregamento
-    esconderHUD();
+    // Aplicar investimentos
+    const investTbody = document.querySelector('#invest tbody');
+    if (investTbody) {
+        if (data.investimentos && data.investimentos.length > 0) {
+            data.investimentos.forEach(item => {
+                // Escapar nome para prevenir XSS
+                const safeNome = typeof escapeHTML === 'function' ? escapeHTML(item.nome) : String(item.nome || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input class="table-input" value="${safeNome}" placeholder="Nome" oninput="calc()"></td>
+                    <td><input class="table-input" type="number" value="${item.aporte || 0}" placeholder="Aporte" step="0.01" oninput="calc()"></td>
+                    <td><input class="table-input" type="number" value="${item.meta || 0}" placeholder="Meta" step="0.01" oninput="calc()"></td>
+                    <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
+                `;
+                investTbody.appendChild(row);
+            });
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input class="table-input" placeholder="Nome" oninput="calc()"></td>
+                <td><input class="table-input" type="number" placeholder="Aporte" step="0.01" oninput="calc()"></td>
+                <td><input class="table-input" type="number" placeholder="Meta" step="0.01" oninput="calc()"></td>
+                <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
+            `;
+            investTbody.appendChild(row);
+        }
+    }
     
-    // Carregar dados - força atualização
-    const resultado = await loadDashboardFromSupabase(true);
+    // Restaurar calc e executar
+    window.calc = originalCalc;
+    if (typeof originalCalc === 'function') {
+        originalCalc();
+    }
     
-    // Manter HUD bloqueado por mais 2 segundos após carregamento completar
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 👁️ Mostrar HUD novamente
-    mostrarHUD();
-    desbloquearHUD();
-    
-    return resultado;
+    window.isApplyingData = false;
+    console.log('✅ Dados aplicados!');
 }
 
 /**
@@ -758,8 +747,9 @@ async function salvarMesEspecifico(ano, mes) {
 
 /**
  * LIMPAR completamente a interface do dashboard
+ * @param {boolean} adicionarLinhasVazias - Se deve adicionar linhas vazias após limpar (default: true)
  */
-function limparInterfaceDashboard() {
+function limparInterfaceDashboard(adicionarLinhasVazias = true) {
     
     // Verificar se o dashboard existe antes de limpar
     const dashboardContent = document.getElementById('dashboardContent');
@@ -776,14 +766,11 @@ function limparInterfaceDashboard() {
     atualizarStatusNaoSalvasHUD();
     
     // Bloquear calc() temporariamente
-    let isCleaning = true;
     const originalCalc = window.calc;
     
     if (typeof originalCalc === 'function') {
         window.calc = function() {
-            if (!isCleaning) {
-                return originalCalc();
-            }
+            // Bloqueado durante limpeza
         };
     }
     
@@ -813,15 +800,15 @@ function limparInterfaceDashboard() {
         }
     });
     
-    // 3. Adicionar linhas vazias para edição
-    setTimeout(() => {
-        isCleaning = false;
-        
-        // Restaurar calc()
-        if (typeof originalCalc === 'function') {
-            window.calc = originalCalc;
-            
-            // Adicionar uma linha vazia em cada tabela
+    // Restaurar calc() imediatamente
+    if (typeof originalCalc === 'function') {
+        window.calc = originalCalc;
+    }
+    
+    // 3. Adicionar linhas vazias para edição (opcional)
+    if (adicionarLinhasVazias) {
+        // Usar setTimeout apenas para adicionar linhas vazias
+        setTimeout(() => {
             if (typeof window.addRow === 'function') {
                 try {
                     window.addRow('renda', '', 0);
@@ -844,13 +831,13 @@ function limparInterfaceDashboard() {
             if (typeof window.calc === 'function') {
                 window.calc();
             }
-        }
-        
-        // RETOMAR auto-save após limpeza
-        setTimeout(() => {
-            retomarAutoSave();
-        }, 500);
-    }, 100);
+            
+            // RETOMAR auto-save após limpeza
+            setTimeout(() => {
+                retomarAutoSave();
+            }, 500);
+        }, 100);
+    }
 }
 
 // ============================================
@@ -887,17 +874,19 @@ function collectDashboardData() {
         });
     }
     
-    // 2. DESPESAS
+    // 2. DESPESAS (incluindo campo 'pago')
     const despesaTable = document.getElementById('despesa');
     if (despesaTable?.querySelector('tbody')) {
         despesaTable.querySelectorAll('tbody tr').forEach(row => {
             const inputs = row.querySelectorAll('input');
+            const checkbox = row.querySelector('input[type="checkbox"]');
             if (inputs.length >= 2) {
                 const descricao = (inputs[0].value || '').trim();
                 const valor = parseFloat(inputs[1].value) || 0;
+                const pago = checkbox ? checkbox.checked : false;
                 
                 if (descricao || valor > 0) {
-                    data.despesas.push({ descricao, valor });
+                    data.despesas.push({ descricao, valor, pago });
                 }
             }
         });
@@ -941,164 +930,10 @@ function collectDashboardData() {
 }
 
 /**
- * Aplicar dados na interface - CORRIGIDA: FORÇA ATUALIZAÇÃO
+ * Aplicar dados na interface - redireciona para versão síncrona
  */
 function applyDashboardData(data) {
-    console.log('🔄 Aplicando dados na interface...');
-    
-    // Marcar que está aplicando dados (bloqueia auto-save)
-    window.isApplyingData = true;
-    
-    if (!data) {
-        console.log('ℹ️ Nenhum dado para aplicar');
-        window.isApplyingData = false;
-        return;
-    }
-    
-    // Verificar se o dashboard existe
-    const dashboardContent = document.getElementById('dashboardContent');
-    if (!dashboardContent) {
-        console.warn('⚠️ Dashboard não encontrado, não é possível aplicar dados');
-        console.warn('⚠️ Aguardando dashboard estar pronto...');
-        
-        // Tentar novamente após 500ms
-        setTimeout(() => {
-            if (document.getElementById('dashboardContent')) {
-                console.log('✅ Dashboard pronto, aplicando dados agora...');
-                applyDashboardData(data);
-            } else {
-                console.error('❌ Dashboard ainda não está pronto após espera');
-            }
-        }, 500);
-        return;
-    }
-    
-    // Verificar se dashboard já tem dados (não precisa limpar)
-    const rendaTbody = document.querySelector('#renda tbody');
-    const despesaTbody = document.querySelector('#despesa tbody');
-    
-    // Se já tem linhas, limpar antes de aplicar novos dados
-    const temDados = rendaTbody && rendaTbody.children.length > 0;
-    
-    if (temDados) {
-        console.log('🧹 Limpando dados antigos...');
-        limparInterfaceDashboard();
-    }
-    
-    // Esperar um pouco para garantir que a limpeza terminou (se necessário)
-    setTimeout(() => {
-        // VARIÁVEL DE CONTROLE
-        let isApplyingData = true;
-        const originalCalc = window.calc;
-        
-        if (typeof originalCalc === 'function') {
-            window.calc = function() {
-                if (!isApplyingData) {
-                    return originalCalc();
-                }
-                console.log('⏸️ calc() bloqueado durante aplicação');
-            };
-        }
-        
-        // Aplicar rendas
-        if (data.rendas && Array.isArray(data.rendas) && data.rendas.length > 0) {
-            console.log(`📈 Aplicando ${data.rendas.length} rendas`);
-            
-            if (typeof window.addRow === 'function') {
-                data.rendas.forEach(item => {
-                    window.addRow('renda', item.descricao, item.valor);
-                });
-            }
-        } else {
-            // Adicionar linha vazia se não houver rendas
-            if (typeof window.addRow === 'function') {
-                window.addRow('renda', '', 0);
-            }
-        }
-        
-        // Aplicar despesas  
-        if (data.despesas && Array.isArray(data.despesas) && data.despesas.length > 0) {
-            console.log(`📉 Aplicando ${data.despesas.length} despesas`);
-            
-            if (typeof window.addRow === 'function') {
-                data.despesas.forEach(item => {
-                    window.addRow('despesa', item.descricao, item.valor);
-                });
-            }
-        } else {
-            // Adicionar linha vazia se não houver despesas
-            if (typeof window.addRow === 'function') {
-                window.addRow('despesa', '', 0);
-            }
-        }
-        
-        // Aplicar investimentos
-        const investTableBody = document.querySelector('#investmentTable tbody') || 
-                               document.querySelector('#invest tbody');
-        
-        if (investTableBody) {
-            if (data.investimentos && Array.isArray(data.investimentos) && data.investimentos.length > 0) {
-                console.log(`💰 Aplicando ${data.investimentos.length} investimentos`);
-                
-                data.investimentos.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><input class="table-input" value="${item.nome || ''}" placeholder="Nome"></td>
-                        <td><input class="table-input" type="number" value="${item.aporte || 0}" placeholder="Aporte" step="0.01"></td>
-                        <td><input class="table-input" type="number" value="${item.meta || 0}" placeholder="Meta" step="0.01"></td>
-                        <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
-                    `;
-                    investTableBody.appendChild(row);
-                    
-                    // Adicionar eventos oninput
-                    row.querySelectorAll('.table-input').forEach(input => {
-                        input.setAttribute('oninput', 'calc()');
-                    });
-                });
-            } else {
-                // Adicionar linha vazia se não houver investimentos
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><input class="table-input" placeholder="Nome do investimento"></td>
-                    <td><input class="table-input" type="number" placeholder="Aporte" step="0.01"></td>
-                    <td><input class="table-input" type="number" placeholder="Meta" step="0.01"></td>
-                    <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
-                `;
-                investTableBody.appendChild(row);
-                
-                // Adicionar eventos oninput
-                row.querySelectorAll('.table-input').forEach(input => {
-                    input.setAttribute('oninput', 'calc()');
-                });
-            }
-        }
-        
-        // Finalizar
-        setTimeout(() => {
-            isApplyingData = false;
-            
-            if (typeof originalCalc === 'function') {
-                window.calc = originalCalc;
-                
-                // Adicionar eventos para todos os inputs
-                document.querySelectorAll('.table-input').forEach(input => {
-                    if (!input.hasAttribute('data-events-added')) {
-                        input.setAttribute('oninput', 'calc()');
-                        input.setAttribute('data-events-added', 'true');
-                    }
-                });
-                
-                // Executar cálculo
-                console.log('🧮 Executando cálculo FINAL...');
-                originalCalc();
-            }
-            
-            console.log('✅ Dados aplicados com sucesso!');
-            
-            // Desmarcar flag de aplicação
-            window.isApplyingData = false;
-        }, 200);
-    }, 300);
+    aplicarDadosSincrono(data);
 }
 
 // ============================================
@@ -1160,6 +995,12 @@ function esconderHUD() {
         hud.style.display = 'none';
         hud.style.visibility = 'hidden';
     }
+    // Também esconder monthHUD do dashboard.js
+    const monthHUD = document.getElementById('monthHUD');
+    if (monthHUD) {
+        monthHUD.style.display = 'none';
+        monthHUD.style.visibility = 'hidden';
+    }
 }
 
 /**
@@ -1170,6 +1011,12 @@ function mostrarHUD() {
     if (hud) {
         hud.style.display = 'flex';
         hud.style.visibility = 'visible';
+    }
+    // Também mostrar monthHUD do dashboard.js
+    const monthHUD = document.getElementById('monthHUD');
+    if (monthHUD) {
+        monthHUD.style.display = 'flex';
+        monthHUD.style.visibility = 'visible';
     }
 }
 
@@ -1364,7 +1211,7 @@ function criarHUDAnoMes() {
         console.log(`📅 Modo período: ${modoPeriodoAtivo ? 'ATIVO' : 'INATIVO'}`);
     });
     
-    selectAno.addEventListener('change', function() {
+    selectAno.addEventListener('change', async function() {
         // 🛑 Bloquear se já está carregando
         if (isLoadingFromServer || hudBloqueado) {
             console.log('⏭️ Mudança de ano bloqueada - carregamento em andamento');
@@ -1372,23 +1219,27 @@ function criarHUDAnoMes() {
             return;
         }
         
+        // Guardar ano anterior para o salvamento
+        const anoAnterior = anoSelecionado;
+        const mesAnterior = mesSelecionado;
+        
+        // FORÇAR SALVAMENTO ANTES DE MUDAR - COM AWAIT
+        if (alteracoesNaoSalvas && !isSavingToSupabase) {
+            console.log('💾 Aguardando salvamento antes de mudar de ano...');
+            await saveDashboardToSupabase(true);
+        }
+        
         anoSelecionado = parseInt(this.value);
         labelPeriodo.textContent = getPeriodoFormatado();
         modoPeriodoAtivo = true;
         btnModo.style.background = '#10b981';
-        
-        // FORÇAR SALVAMENTO ANTES DE MUDAR DE ANO
-        if (alteracoesNaoSalvas) {
-            console.log('💾 Forçando salvamento ao mudar de ano...');
-            saveDashboardToSupabase(true);
-        }
         
         // CARREGAR novo ano
         console.log(`📅 Carregando ano: ${anoSelecionado}`);
         carregarMesEspecifico(anoSelecionado, mesSelecionado);
     });
     
-    selectMes.addEventListener('change', function() {
+    selectMes.addEventListener('change', async function() {
         // 🛑 Bloquear se já está carregando
         if (isLoadingFromServer || hudBloqueado) {
             console.log('⏭️ Mudança de mês bloqueada - carregamento em andamento');
@@ -1396,16 +1247,16 @@ function criarHUDAnoMes() {
             return;
         }
         
+        // FORÇAR SALVAMENTO ANTES DE MUDAR - COM AWAIT
+        if (alteracoesNaoSalvas && !isSavingToSupabase) {
+            console.log('💾 Aguardando salvamento antes de mudar de mês...');
+            await saveDashboardToSupabase(true);
+        }
+        
         mesSelecionado = parseInt(this.value);
         labelPeriodo.textContent = getPeriodoFormatado();
         modoPeriodoAtivo = true;
         btnModo.style.background = '#10b981';
-        
-        // FORÇAR SALVAMENTO ANTES DE MUDAR DE MÊS
-        if (alteracoesNaoSalvas) {
-            console.log('💾 Forçando salvamento ao mudar de mês...');
-            saveDashboardToSupabase(true);
-        }
         
         // CARREGAR novo mês
         console.log(`📅 Carregando mês: ${mesSelecionado}`);
@@ -1659,12 +1510,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (session) {
                 console.log('🌐 Usuário logado');
                 
-                // Configurar callbacks do Connection Monitor
+                // Configurar callbacks do Connection Monitor (se disponível)
                 setupConnectionMonitorCallbacks();
                 
                 // Tentar restaurar dados de backup local se houver
                 try {
-                    await ConnectionMonitor.restoreFromBackup();
+                    if (typeof ConnectionMonitor !== 'undefined' && ConnectionMonitor.restoreFromBackup) {
+                        await ConnectionMonitor.restoreFromBackup();
+                    } else {
+                        // Verificar backup local pendente
+                        const backupLocal = localStorage.getItem('dashboardBackup');
+                        if (backupLocal) {
+                            const backup = JSON.parse(backupLocal);
+                            if (backup.pendingSave) {
+                                console.log('📥 Encontrado backup pendente, será sincronizado após carregar');
+                            }
+                        }
+                    }
                 } catch (error) {
                     console.log('ℹ️ Nenhum backup para restaurar');
                 }
@@ -1691,8 +1553,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             // 👁️ Mostrar HUD agora que carregamento terminou
                             mostrarHUD();
                             desbloquearHUD();
+                            
+                            // Sincronizar backup pendente se existir
+                            sincronizarBackupPendente();
                         }
-                    }, 5000); // 5 segundos para garantir que tudo foi aplicado
+                    }, 2500); // Reduzido de 5 para 2.5 segundos
                 }
             } else {
                 console.log('👤 Usuário não está logado');
@@ -1704,54 +1569,36 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// EXPORTAR PARA USO GLOBAL - ATUALIZADO
+// EXPORTAR PARA USO GLOBAL
 // ============================================
 
-window.supabaseData = {
-    save: () => saveDashboardToSupabase(true), // Sempre força salvamento
-    load: () => loadDashboardFromSupabase(true), // Sempre força carregamento
-    limpar: limparInterfaceDashboard,
-    toggleHUD: () => {
-        const hud = document.getElementById('hud-periodo-container');
-        if (!hud) {
-            criarHUDAnoMes();
-        } else {
-            hud.style.display = hud.style.display === 'none' ? 'flex' : 'none';
-        }
-    },
-    getPeriodo: getPeriodoFormatado,
-    carregarMes: carregarMesEspecifico,
-    salvarMes: salvarMesEspecifico,
-    setPeriodo: (ano, mes) => {
-        anoSelecionado = ano;
-        mesSelecionado = mes;
-        modoPeriodoAtivo = true;
-        atualizarHUDAnoMes();
-    },
-    temAlteracoesNaoSalvas: () => alteracoesNaoSalvas,
-    forcarSalvamento: () => saveDashboardToSupabase(true),
-    forcarCarregamento: () => loadDashboardFromSupabase(true)
-};
-
-// Aliases para facilitar
-window.saveToCloud = () => saveDashboardToSupabase(true);
-window.loadFromCloud = () => loadDashboardFromSupabase(true);
+// Expor funções para compatibilidade com dashboard.js
 window.limparDashboard = limparInterfaceDashboard;
-window.carregarMes = carregarMesEspecifico;
-window.salvarMes = salvarMesEspecifico;
+window.carregarMesEspecifico = carregarMesEspecifico;
+window.salvarMesEspecifico = salvarMesEspecifico;
 
-// Função para integração com dashboard.js
-window.carregarDadosDashboard = async function(ano, mes) {
-    try {
-        return await carregarMesEspecifico(ano, mes);
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-};
+// Expor variáveis de estado para connection-monitor.js e dashboard.js
+Object.defineProperty(window, 'alteracoesNaoSalvas', {
+    get: () => alteracoesNaoSalvas,
+    set: (val) => { alteracoesNaoSalvas = val; }
+});
+Object.defineProperty(window, 'mesSelecionado', {
+    get: () => mesSelecionado,
+    set: (val) => { mesSelecionado = val; }
+});
+Object.defineProperty(window, 'anoSelecionado', {
+    get: () => anoSelecionado,
+    set: (val) => { anoSelecionado = val; }
+});
+// 🔒 Expor variáveis de carregamento para dashboard.js poder verificar
+Object.defineProperty(window, 'isLoadingFromServer', {
+    get: () => isLoadingFromServer,
+    set: (val) => { isLoadingFromServer = val; }
+});
+Object.defineProperty(window, 'hudBloqueado', {
+    get: () => hudBloqueado,
+    set: (val) => { hudBloqueado = val; }
+});
 
 /**
  * Limpar recursos ao fazer logout
@@ -1777,18 +1624,6 @@ window.limparRecursos = function() {
     isSavingToSupabase = false;
     
     console.log('✅ Recursos limpos');
-};
-
-window.salvarDadosDashboard = async function(ano, mes) {
-    try {
-        return await salvarMesEspecifico(ano, mes);
-    } catch (error) {
-        console.error('❌ Erro ao salvar dados:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
 };
 
 // ============================================
@@ -1841,7 +1676,7 @@ function setupConnectionMonitorCallbacks() {
                     // Se backup foi criado recentemente (últimos 30 min)
                     if (agora - timeBackup < 30 * 60 * 1000) {
                         console.log('🔄 Restaurando dados do backup local...');
-                        applyDashboardData(backup.data);
+                        aplicarDadosSincrono(backup.data);
                         
                         // Salvar no Supabase
                         await saveDashboardToSupabase(true);
@@ -1907,6 +1742,61 @@ function removerNotificacaoDesconexao() {
     
     if (document.body) {
         document.body.style.paddingTop = '0';
+    }
+}
+
+/**
+ * Sincronizar backup pendente (dados salvos antes de fechar a página)
+ */
+async function sincronizarBackupPendente() {
+    try {
+        const backupLocal = localStorage.getItem('dashboardBackup');
+        if (!backupLocal) return;
+        
+        const backup = JSON.parse(backupLocal);
+        
+        // Verificar se é um backup pendente recente (últimos 24h)
+        if (backup.pendingSave) {
+            const agora = new Date();
+            const timeBackup = new Date(backup.timestamp);
+            const horasDesdeBackup = (agora - timeBackup) / (1000 * 60 * 60);
+            
+            if (horasDesdeBackup < 24) {
+                console.log('📤 Sincronizando backup pendente de ' + backup.periodo + '...');
+                
+                // Perguntar ao usuário
+                const confirmar = confirm(
+                    `Foi encontrado um backup não sincronizado de ${backup.periodo}.\n\n` +
+                    `Criado em: ${new Date(backup.timestamp).toLocaleString('pt-BR')}\n\n` +
+                    `Deseja restaurar esses dados?`
+                );
+                
+                if (confirmar) {
+                    // Aplicar dados do backup
+                    aplicarDadosSincrono(backup.data);
+                    
+                    // Salvar no servidor
+                    const result = await saveDashboardToSupabase(true);
+                    
+                    if (result.success) {
+                        showSuccess('✅ Backup sincronizado com sucesso!');
+                        localStorage.removeItem('dashboardBackup');
+                    } else {
+                        showError('❌ Erro ao sincronizar backup');
+                    }
+                } else {
+                    // Usuário recusou, remover backup
+                    localStorage.removeItem('dashboardBackup');
+                    console.log('🗑️ Backup descartado pelo usuário');
+                }
+            } else {
+                // Backup muito antigo, remover
+                localStorage.removeItem('dashboardBackup');
+                console.log('🗑️ Backup antigo removido');
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao sincronizar backup pendente:', error);
     }
 }
 

@@ -226,19 +226,6 @@ input[type="checkbox"]:checked::after {
   }
 }
 
-/* Orientation change handling */
-@media (orientation: portrait) {
-  .landscape-only {
-    display: none !important;
-  }
-}
-
-@media (orientation: landscape) {
-  .portrait-only {
-    display: none !important;
-  }
-}
-
 /* Focus visible para acessibilidade */
 :focus-visible {
   outline: 2px solid var(--primary);
@@ -248,49 +235,6 @@ input[type="checkbox"]:checked::after {
 /* Remover outline padrão mas manter acessibilidade */
 :focus:not(:focus-visible) {
   outline: none;
-}
-
-/* Loading states para melhor UX */
-.loading {
-  pointer-events: none;
-  opacity: 0.6;
-  cursor: wait;
-}
-
-.loading::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
-  border: 2px solid var(--primary);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Skeleton loading para melhor perceived performance */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--border) 25%,
-    var(--border-light) 50%,
-    var(--border) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
 
 /* Safe area insets para dispositivos com notch */
