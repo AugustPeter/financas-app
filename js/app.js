@@ -1,136 +1,104 @@
-/**
- * app.js - Aplicação Principal
- * Versão otimizada e limpa
- */
+// js/app.js - VERSÃO OTIMIZADA E LEVE
+// Objetivo: criar dashboard de forma eficiente, com cache de DOM e proteção contra loads duplicados
 
-(function() {
-  'use strict';
+(function () {
+  // Estado global leve
+  window.appState = { currentTab: 'dashboard', isAuthenticated: false };
 
-  // ============================================
-  // ESTADO
-  // ============================================
-
-  const App = {
-    state: {
-      currentTab: 'dashboard',
-      isAuthenticated: false,
-      isDashboardLoading: false
+  // Cache de elementos e flags
+  const AppCache = {
+    appRoot: null,
+    appContent: null,
+    dashboardContent: null,
+    toast: null,
+    isInitialized: false,
+    isDashboardLoading: false,
+    init() {
+      this.appRoot = document.getElementById('app') || document.body;
+      this.appContent = document.getElementById('appContent') || this._createAppContent();
+      this.dashboardContent = document.getElementById('dashboardContent');
+      this.toast = document.getElementById('toast');
+      this.isInitialized = true;
     },
-    cache: {
-      appContent: null,
-      dashboardContent: null
+    _createAppContent() {
+      const el = document.createElement('div');
+      el.id = 'appContent';
+      this.appRoot.appendChild(el);
+      return el;
+    },
+    refreshDashboardRef() {
+      this.dashboardContent = document.getElementById('dashboardContent');
     }
   };
 
-  // ============================================
-  // INICIALIZAÇÃO
-  // ============================================
-
-  function init() {
-    cacheElements();
-    createAppStructure();
-    setupNavigation();
-    loadInitialTab();
-    setupMobileOptimizations();
-  }
-
-  function cacheElements() {
-    App.cache.appContent = document.getElementById('appContent') || createAppContent();
-  }
-
-  function createAppContent() {
-    const el = document.createElement('div');
-    el.id = 'appContent';
-    (document.getElementById('app') || document.body).appendChild(el);
-    return el;
-  }
-
-  // ============================================
-  // ESTRUTURA
-  // ============================================
-
-  function createAppStructure() {
-    if (document.getElementById('dashboardContent')) return;
-
-    addAppStyles();
-
-    App.cache.appContent.innerHTML = `
-      <div class="container">
-        <div id="dashboardContent" class="tab-content active"></div>
-        <div id="transactionsContent" class="tab-content"></div>
-        <div id="investmentsContent" class="tab-content"></div>
-        <div id="reportsContent" class="tab-content"></div>
-      </div>
-      <div id="toast" class="toast"></div>
-    `;
-
-    App.cache.dashboardContent = document.getElementById('dashboardContent');
-  }
-
-  function addAppStyles() {
-    if (document.getElementById('app-styles')) return;
-
+  // Injetar estilos do dashboard (apenas uma vez)
+  function addDashboardStyles() {
+    if (document.getElementById('dashboard-styles')) return;
     const style = document.createElement('style');
-    style.id = 'app-styles';
+    style.id = 'dashboard-styles';
     style.textContent = `
-      .container { 
-        max-width: 1200px; 
-        margin: 0 auto; 
-        padding: 1.5rem;
-        padding-top: 70px;
-      }
-      .tab-content { display: none; }
-      .tab-content.active { display: block; }
-      .toast { 
-        position: fixed; 
-        bottom: 1rem; 
-        left: 50%; 
-        transform: translateX(-50%); 
-        background: #1e293b; 
-        color: white; 
-        padding: 0.75rem 1.5rem; 
-        border-radius: 0.5rem; 
-        display: none; 
-        z-index: 10000; 
-      }
-      .toast.show { display: block; }
-      
-      @media (max-width: 768px) {
-        .container { 
-          padding: 1rem;
-          padding-top: 70px;
-          padding-bottom: 80px;
-        }
-      }
+      .container { max-width:1200px; margin:0 auto; padding:1.5rem; }
+      .tab-content { display:none; } .tab-content.active { display:block; }
+      .bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; background:#1e293b; border-top:1px solid #334155; padding:.5rem; }
+      .nav-item { flex:1; background:none; border:none; color:#94a3b8; padding:.5rem; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:.25rem; }
+      .nav-item.active { color:#3b82f6; }
+      .toast { position:fixed; bottom:1rem; left:50%; transform:translateX(-50%); background:#1e293b; color:white; padding:.75rem 1.5rem; border-radius:.5rem; display:none; z-index:1000; }
+      @media (max-width:768px){ .tabs-container{display:none;} .bottom-nav{display:flex;} }
     `;
     document.head.appendChild(style);
   }
 
-  // ============================================
-  // NAVEGAÇÃO
-  // ============================================
+  // Cria estrutura do dashboard usando template para reduzir reflow
+  function createDashboardStructure() {
+    AppCache.init();
+    if (document.getElementById('dashboardContent')) return;
 
-  function setupNavigation() {
-    App.cache.appContent.addEventListener('click', (e) => {
-      const tabBtn = e.target.closest('[data-tab]');
-      if (tabBtn) {
-        e.preventDefault();
-        switchTab(tabBtn.getAttribute('data-tab'));
-      }
-    });
+    addDashboardStyles();
+
+    const tpl = document.createElement('template');
+    tpl.innerHTML = `
+      <div>
+        <div class="container">
+          <div id="dashboardContent" class="tab-content active"></div>
+          <div id="transactionsContent" class="tab-content"></div>
+          <div id="investmentsContent" class="tab-content"></div>
+          <div id="reportsContent" class="tab-content"></div>
+        </div>
+
+        <div id="toast" class="toast" aria-live="polite"></div>
+      </div>
+    `.trim();
+
+    // Aplica template de forma eficiente
+    AppCache.appContent.innerHTML = '';
+    AppCache.appContent.appendChild(tpl.content.cloneNode(true));
+    AppCache.refreshDashboardRef();
   }
 
-  function switchTab(tabName) {
-    if (!tabName || App.state.currentTab === tabName) return;
-    
-    App.state.currentTab = tabName;
+  // Navegação e delegação (delegação limitada ao appContent)
+  function setupNavigation() {
+    if (!AppCache.appContent) AppCache.init();
 
-    // Atualizar tabs ativas
-    document.querySelectorAll('.tab, .nav-item').forEach(el => {
-      el.classList.toggle('active', el.getAttribute('data-tab') === tabName);
+    AppCache.appContent.addEventListener('click', (e) => {
+      const tabBtn = e.target.closest('[data-tab]');
+      if (!tabBtn) return;
+      e.preventDefault();
+      const tabName = tabBtn.getAttribute('data-tab');
+      switchTab(tabName);
     });
 
-    // Atualizar conteúdo ativo
+    // month selector change handled by HUD or components that create it
+  }
+
+  // Alternar tab de forma eficiente
+  function switchTab(tabName) {
+    if (!AppCache.appContent) AppCache.init();
+    if (!tabName || window.appState.currentTab === tabName) return;
+    window.appState.currentTab = tabName;
+
+    const selectors = AppCache.appContent.querySelectorAll('.tab, .nav-item');
+    selectors.forEach(el => el.classList.toggle('active', el.getAttribute('data-tab') === tabName));
+
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.toggle('active', content.id === `${tabName}Content`);
     });
@@ -138,123 +106,126 @@
     loadTabContent(tabName);
   }
 
+  // Carregar conteúdo conforme a tab
   function loadTabContent(tabName) {
-    const loaders = {
-      dashboard: loadDashboard,
-      transactions: () => typeof loadTransactionsContent === 'function' && loadTransactionsContent(),
-      investments: () => typeof loadInvestmentsContent === 'function' && loadInvestmentsContent(),
-      reports: () => typeof loadReportsContent === 'function' && loadReportsContent()
-    };
-
-    if (loaders[tabName]) loaders[tabName]();
+    switch (tabName) {
+      case 'dashboard': loadDashboard(); break;
+      case 'transactions': if (typeof loadTransactionsContent === 'function') loadTransactionsContent(); break;
+      case 'investments': if (typeof loadInvestmentsContent === 'function') loadInvestmentsContent(); break;
+      case 'reports': if (typeof loadReportsContent === 'function') loadReportsContent(); break;
+    }
   }
 
-  function loadInitialTab() {
-    loadDashboard();
-  }
-
-  // ============================================
-  // DASHBOARD
-  // ============================================
-
+  // Debounced/simple guard loader para o dashboard
   async function loadDashboard() {
-    if (App.state.isDashboardLoading) return;
-    App.state.isDashboardLoading = true;
+    AppCache.init();
+    if (AppCache.isDashboardLoading) return;
+    AppCache.isDashboardLoading = true;
 
     try {
-      const container = document.getElementById('dashboardContent');
-      if (!container) return;
+      const dashboardContent = document.getElementById('dashboardContent');
+      if (!dashboardContent) {
+        AppCache.isDashboardLoading = false;
+        return;
+      }
 
-      // Já renderizado?
-      if (container.querySelector('#renda')) return;
+      // Se já tem conteúdo renderizado, não renderiza novamente
+      if (dashboardContent.querySelector('#renda')) {
+        AppCache.isDashboardLoading = false;
+        return;
+      }
 
-      // Aguardar função estar disponível
+      // Renderizar o dashboard (dados já foram carregados por supabase-data.js)
       if (typeof loadDashboardContent === 'function') {
         loadDashboardContent();
       } else {
-        await waitForFunction('loadDashboardContent', 5000);
-        if (typeof loadDashboardContent === 'function') {
-          loadDashboardContent();
-        } else {
-          showDashboardError(container);
-        }
+        // Aguardar um pouco caso os scripts ainda estejam carregando
+        let attempts = 0;
+        const waitForDashboard = setInterval(() => {
+          attempts++;
+          if (typeof loadDashboardContent === 'function') {
+            clearInterval(waitForDashboard);
+            loadDashboardContent();
+          } else if (attempts > 10) {
+            clearInterval(waitForDashboard);
+            // Se loadDashboardContent não está disponível após 2s, mostrar erro
+            dashboardContent.innerHTML = `
+              <div style="text-align:center;padding:3rem;color:#ef4444">
+                <h2>Erro ao carregar dashboard</h2>
+                <p>Função loadDashboardContent não encontrada.</p>
+                <p style="font-size:0.9rem;margin-top:1rem;color:#94a3b8">Verifique o console para mais detalhes.</p>
+                <button id="retryDashboard" style="margin-top:1rem;padding:.75rem 1.5rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;cursor:pointer">Tentar novamente</button>
+              </div>
+            `;
+            const retry = document.getElementById('retryDashboard');
+            if (retry) retry.addEventListener('click', () => {
+              location.reload();
+            });
+          }
+        }, 200);
       }
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err);
     } finally {
-      App.state.isDashboardLoading = false;
+      AppCache.isDashboardLoading = false;
     }
   }
 
-  function waitForFunction(name, timeout = 5000) {
-    return new Promise((resolve) => {
-      const start = Date.now();
-      const check = () => {
-        if (typeof window[name] === 'function') {
-          resolve(true);
-        } else if (Date.now() - start > timeout) {
-          resolve(false);
-        } else {
-          setTimeout(check, 100);
-        }
-      };
-      check();
-    });
-  }
-
-  function showDashboardError(container) {
-    container.innerHTML = `
-      <div style="text-align:center;padding:3rem;color:#ef4444">
-        <h2>Erro ao carregar</h2>
-        <p>Não foi possível carregar o dashboard.</p>
-        <button onclick="location.reload()" style="margin-top:1rem;padding:.75rem 1.5rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;cursor:pointer">
-          Recarregar
-        </button>
-      </div>
-    `;
-  }
-
-  // ============================================
-  // MOBILE
-  // ============================================
-
-  function setupMobileOptimizations() {
-    // Touch device class
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-      document.body?.classList.add('touch-device');
-    }
-
-    // Prevenir zoom duplo-toque
-    let lastTouch = 0;
-    document.addEventListener('touchend', (e) => {
-      const now = Date.now();
-      if (now - lastTouch <= 300) e.preventDefault();
-      lastTouch = now;
-    }, { passive: false });
-
-    // Scroll optimization
-    if (CSS.supports('overscroll-behavior', 'contain')) {
-      document.body.style.overscrollBehavior = 'contain';
-    }
-  }
-
-  // ============================================
-  // EXPORTAR
-  // ============================================
-
-  window.appState = App.state;
+  // Expor funções úteis para o resto do app
   window.switchTab = switchTab;
   window.loadDashboard = loadDashboard;
 
-  // ============================================
-  // INICIAR
-  // ============================================
+  // Inicialização quando DOM pronto — auth.js deve decidir visibilidade
+  document.addEventListener('DOMContentLoaded', () => {
+    AppCache.init();
+    createDashboardStructure();
+    setupNavigation();
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+    // Aplicar tema salvo
+    if (typeof window.applyStoredTheme === 'function') {
+      window.applyStoredTheme();
+    }
+
+    // Chamar loadDashboard mas sem forçar se auth.js vai controlar a exibição
+    loadDashboard();
+    
+    // Mobile optimizations
+    initializeMobileOptimizations();
+  });
+  
+  // Otimizações para mobile
+  function initializeMobileOptimizations() {
+    // Detectar scroll em tabelas e remover indicador
+    document.addEventListener('scroll', (e) => {
+      if (e.target.classList && e.target.classList.contains('table-container')) {
+        if (e.target.scrollLeft > 10) {
+          e.target.classList.add('scrolled');
+        } else {
+          e.target.classList.remove('scrolled');
+        }
+      }
+    }, true);
+    
+    // Prevenir zoom duplo-toque no iOS
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+    
+    // Adicionar classe para detectar se é touch device
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      if (document.body) {
+        document.body.classList.add('touch-device');
+      }
+    }
+    
+    // Melhorar performance de scroll
+    if (document.body && CSS.supports('overscroll-behavior', 'contain')) {
+      document.body.style.overscrollBehavior = 'contain';
+    }
   }
-
-  console.log('✅ app.js carregado');
 })();
