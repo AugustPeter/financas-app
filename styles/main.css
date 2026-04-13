@@ -1,22 +1,46 @@
 :root {
-  /* Cores */
+  /* Cores - Paleta refinada */
   --bg: #0f172a;
+  --bg-secondary: #1a2332;
   --card: #1e293b;
+  --card-hover: #263449;
   --text: #f1f5f9;
+  --text-secondary: #cbd5e1;
   --muted: #94a3b8;
   --primary: #3b82f6;
   --primary-light: #60a5fa;
   --primary-dark: #1d4ed8;
+  --accent: #8b5cf6;
+  --accent-light: #a78bfa;
   --green: #10b981;
   --green-light: #34d399;
   --red: #ef4444;
   --red-light: #f87171;
+  --yellow: #f59e0b;
   --border: #334155;
   --border-light: #475569;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* Sombras */
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --glow-primary: 0 0 20px rgba(59, 130, 246, 0.3);
+  --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+  --glow-red: 0 0 20px rgba(239, 68, 68, 0.3);
+  
+  /* Gradientes */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-card: linear-gradient(180deg, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%);
+  
+  /* Bordas */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  
   /* Transitions */
-  --transition: all 0.3s ease;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease;
 }
 
 .dark {
@@ -39,6 +63,31 @@ html, body {
   overflow-x: hidden;
   width: 100%;
   max-width: 100vw;
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* Seleção de texto */
+::selection {
+  background: var(--primary);
+  color: white;
 }
 
 /* Touch optimization */
@@ -1106,4 +1155,231 @@ body.login-active {
 
 body.login-active #app {
   display: none;
+}
+
+/* ============================================
+   ESTILOS EXTRAS - MELHORIAS VISUAIS
+   ============================================ */
+
+/* Efeito de brilho nos cards */
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.summary-card:hover::before {
+  opacity: 1;
+}
+
+/* Animações */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green-light);
+}
+
+.badge-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red-light);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--yellow);
+}
+
+.badge-info {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--primary-light);
+}
+
+/* Valores positivos e negativos */
+.positive {
+  color: var(--green-light) !important;
+}
+
+.negative {
+  color: var(--red-light) !important;
+}
+
+/* Tooltips */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  background: var(--card);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+/* Focus states acessíveis */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Botão de ação flutuante */
+.fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  z-index: 1000;
+}
+
+.fab:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* Responsive HUD */
+@media (max-width: 768px) {
+  #hud-periodo-container {
+    width: calc(100% - 20px) !important;
+    min-width: unset !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+  
+  #hud-periodo-container select {
+    padding: 8px 24px 8px 10px !important;
+    font-size: 13px !important;
+  }
+  
+  #hud-periodo-container button {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+  
+  #hud-label-periodo {
+    display: none !important;
+  }
+}
+
+/* Melhorias de acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .app-header,
+  #hud-periodo-container,
+  .btn-add,
+  .btn-icon,
+  .fab {
+    display: none !important;
+  }
+  
+  .content-card {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    break-inside: avoid;
+  }
 }
