@@ -515,36 +515,36 @@ function criarHUDAnoMes() {
   label.style.cssText = 'font-weight: 700; font-size: 15px; min-width: 140px; text-align: center;';
   
   // Botão salvar
-  const btnSalvar = document.createElement('button');
-  btnSalvar.id = 'hud-btn-salvar';
-  btnSalvar.innerHTML = '✓ Salvo';
-  btnSalvar.style.cssText = `
-    background: #10b981;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 20px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    transition: all 0.2s;
-  `;
+  // const btnSalvar = document.createElement('button');
+  // btnSalvar.id = 'hud-btn-salvar';
+  // btnSalvar.innerHTML = '✓ Salvo';
+  // btnSalvar.style.cssText = `
+  //   background: #10b981;
+  //   color: white;
+  //   border: none;
+  //   border-radius: 10px;
+  //   padding: 10px 20px;
+  //   cursor: pointer;
+  //   font-weight: 600;
+  //   font-size: 14px;
+  //   transition: all 0.2s;
+  // `;
   
   // Botão limpar
-  const btnLimpar = document.createElement('button');
-  btnLimpar.id = 'hud-btn-limpar';
-  btnLimpar.innerHTML = '🗑️';
-  btnLimpar.title = 'Limpar tela';
-  btnLimpar.style.cssText = `
-    background: #ef4444;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 14px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.2s;
-  `;
+  // const btnLimpar = document.createElement('button');
+  // btnLimpar.id = 'hud-btn-limpar';
+  // btnLimpar.innerHTML = '🗑️';
+  // btnLimpar.title = 'Limpar tela';
+  // btnLimpar.style.cssText = `
+  //   background: #ef4444;
+  //   color: white;
+  //   border: none;
+  //   border-radius: 10px;
+  //   padding: 10px 14px;
+  //   cursor: pointer;
+  //   font-size: 16px;
+  //   transition: all 0.2s;
+  // `;
   
   hud.append(selectAno, selectMes, label, btnSalvar, btnLimpar);
   document.body.appendChild(hud);
