@@ -388,10 +388,11 @@ tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* Inputs - Mais modernos */
+/* Inputs - Mais modernos com espaçamento vertical aumentado */
 .table-input {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 1.2rem 1rem;
+  margin: 0.25rem 0;
   border-radius: 10px;
   border: 2px solid var(--border);
   background: rgba(15, 23, 42, 0.7);
@@ -401,6 +402,38 @@ tr:nth-child(even) {
   transition: all 0.3s ease;
   -webkit-appearance: none;
   appearance: none;
+  min-height: 50px;
+  box-sizing: border-box;
+}
+
+/* Select de status com estilo específico */
+.status-select {
+  min-width: 120px !important;
+  max-width: 140px !important;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Checkbox de fixo com estilo melhorado */
+.check-fixo, .check-fixo-invest {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0 0.5rem;
+}
+
+/* Aumentar espaçamento nas células da tabela */
+.table-container td {
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+}
+
+.table-container th {
+  padding: 1rem 0.5rem;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
 }
 
 .table-input:focus {
@@ -1106,4 +1139,25 @@ body.login-active {
 
 body.login-active #app {
   display: none;
+}
+
+.check-fixo {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+  transition: all 0.2s ease;
+}
+
+.check-fixo:hover {
+  transform: scale(1.1);
+}
+
+.check-fixo:checked {
+  animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }

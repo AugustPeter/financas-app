@@ -22,6 +22,10 @@ function loadDashboardContent() {
     <!-- Cards de Resumo -->
     <div class="summary-cards">
       <div class="summary-card">
+        <span>Saldo Anterior</span>
+        <h2 id="saldoAnterior">R$ 0,00</h2>
+      </div>
+      <div class="summary-card">
         <span>Renda</span>
         <h2 id="totalRenda">R$ 0,00</h2>
       </div>
@@ -53,6 +57,7 @@ function loadDashboardContent() {
                 <th>Descrição</th>
                 <th>Valor</th>
                 <th>Ações</th>
+                <th>Fixo</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -72,7 +77,8 @@ function loadDashboardContent() {
               <tr>
                 <th>Descrição</th>
                 <th>Valor</th>
-                <th>Pago</th>
+                <th>Status</th>
+                <th>Fixo</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -94,6 +100,7 @@ function loadDashboardContent() {
                 <th>Nome</th>
                 <th>Aporte</th>
                 <th>Meta</th>
+                <th>Fixo</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -110,6 +117,18 @@ function loadDashboardContent() {
         </div>
       </div>
     </div>
+
+    <!-- Ações do Dashboard -->
+    <div class="content-card" style="margin-top: 2rem;">
+      <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="salvarSaldoAnterior()">
+          Salvar Saldo como Anterior
+        </button>
+        <button class="btn" onclick="limparDashboard()">
+          Limpar Dashboard
+        </button>
+      </div>
+    </div>
   `;
   
   // Marcar como renderizado
@@ -117,6 +136,11 @@ function loadDashboardContent() {
   
   // Inicializar tabelas com linhas vazias
   setTimeout(() => {
+    // Carregar dados fixos e saldo anterior
+    carregarSaldoAnterior();
+    carregarGastosFixos();
+    carregarInvestimentosFixos();
+    
     // Só adiciona linhas vazias se não houver dados ainda
     if (!document.querySelector('#renda tbody tr')) {
       addRow('renda', '', 0);
@@ -519,7 +543,7 @@ initializeHUDSystem();
 // ============================================
 
 // Adicionar linha
-function addRow(tipo, descricao = '', valor = 0, pago = false) {
+function addRow(tipo, descricao = '', valor = 0, pago = false, fixo = false) {
   const tbody = document.querySelector(`#${tipo} tbody`);
   if (!tbody) return;
   
@@ -536,10 +560,16 @@ function addRow(tipo, descricao = '', valor = 0, pago = false) {
     `;
   } else if (tipo === 'despesa') {
     tr.innerHTML = `
-      <td><input class="table-input" value="${safeDescricao}" oninput="calc()" placeholder="Descrição"></td>
-      <td><input class="table-input" type="number" value="${valor}" oninput="calc()" placeholder="0.00" step="0.01"></td>
-      <td><input type="checkbox" class="check-pago" ${pago ? 'checked' : ''} onchange="calc()"></td>
-      <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
+        <td><input class="table-input" value="${safeDescricao}" oninput="calc()" placeholder="Descrição"></td>
+        <td><input class="table-input" type="number" value="${valor}" oninput="calc()" placeholder="0.00" step="0.01"></td>
+        <td>
+          <select class="table-input status-select" onchange="calc()">
+            <option value="pendente" ${!pago ? 'selected' : ''}>Pendente</option>
+            <option value="pago" ${pago ? 'selected' : ''}>Pago</option>
+          </select>
+        </td>
+        <td><input type="checkbox" class="check-fixo" ${fixo ? 'checked' : ''} onchange="marcarComoFixo(this)"></td>
+        <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
     `;
   }
   
@@ -561,6 +591,7 @@ function addInvest(nome = '', aporte = 0, meta = 0) {
     <td><input class="table-input" value="${safeNome}" oninput="calc()" placeholder="Nome"></td>
     <td><input class="table-input" type="number" value="${aporte}" oninput="calc()" placeholder="Aporte" step="0.01"></td>
     <td><input class="table-input" type="number" value="${meta}" oninput="calc()" placeholder="Meta" step="0.01"></td>
+    <td><input type="checkbox" class="check-fixo-invest" onchange="marcarInvestimentoComoFixo(this)"></td>
     <td><button class="btn-icon" onclick="removeRow(this)">✕</button></td>
   `;
   
@@ -586,16 +617,20 @@ const calcElements = {};
 function calc() {
   // Cache de elementos (lazy load)
   if (!calcElements.totalRenda) {
+    calcElements.saldoAnterior = document.getElementById('saldoAnterior');
     calcElements.totalRenda = document.getElementById('totalRenda');
     calcElements.totalDespesa = document.getElementById('totalDespesa');
     calcElements.totalInvest = document.getElementById('totalInvest');
     calcElements.saldo = document.getElementById('saldo');
   }
   
-  const { totalRenda: totalRendaEl, totalDespesa: totalDespesaEl, 
+  const { saldoAnterior: saldoAnteriorEl, totalRenda: totalRendaEl, totalDespesa: totalDespesaEl, 
           totalInvest: totalInvestEl, saldo: saldoEl } = calcElements;
   
-  if (!totalRendaEl || !totalDespesaEl || !totalInvestEl || !saldoEl) return;
+  if (!saldoAnteriorEl || !totalRendaEl || !totalDespesaEl || !totalInvestEl || !saldoEl) return;
+  
+  // Obter saldo anterior
+  const saldoAnterior = parseFloat(saldoAnteriorEl.textContent.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
   
   // Cálculos otimizados com reduce
   const totalRenda = Array.from(document.querySelectorAll('#renda input[type="number"]'))
@@ -610,9 +645,10 @@ function calc() {
       return sum + (aporteInput ? (parseFloat(aporteInput.value) || 0) : 0);
     }, 0);
   
-  const saldoValor = totalRenda - totalDespesa - totalInvest;
+  const saldoValor = saldoAnterior + totalRenda - totalDespesa - totalInvest;
   
   // Atualizar displays
+  saldoAnteriorEl.textContent = formatCurrency(saldoAnterior);
   totalRendaEl.textContent = formatCurrency(totalRenda);
   totalDespesaEl.textContent = formatCurrency(totalDespesa);
   totalInvestEl.textContent = formatCurrency(totalInvest);
@@ -795,3 +831,128 @@ style.textContent = `
 document.head.appendChild(style);
 
 console.log('✅ dashboard.js (corrigido e integrado) pronto!');
+
+function marcarComoFixo(checkbox) {
+  const tr = checkbox.closest('tr');
+  if (!tr) return;
+  
+  const descricao = tr.querySelector('td:first-child input').value;
+  const valor = parseFloat(tr.querySelector('td:nth-child(2) input').value) || 0;
+  
+  if (checkbox.checked && descricao) {
+    const gastosFixos = JSON.parse(localStorage.getItem('gastosFixos') || '[]');
+    const index = gastosFixos.findIndex(g => g.descricao === descricao);
+    if (index >= 0) {
+      gastosFixos[index].valor = valor;
+    } else {
+      gastosFixos.push({ descricao, valor });
+    }
+    localStorage.setItem('gastosFixos', JSON.stringify(gastosFixos));
+    if (typeof showToast === 'function') showToast(`"${descricao}" marcado como gasto fixo`, 'success');
+  } else {
+    removerGastoFixo(descricao);
+  }
+}
+
+function removerGastoFixo(descricao) {
+  const gastosFixos = JSON.parse(localStorage.getItem('gastosFixos') || '[]');
+  const filtrados = gastosFixos.filter(g => g.descricao !== descricao);
+  localStorage.setItem('gastosFixos', JSON.stringify(filtrados));
+}
+
+function carregarGastosFixos() {
+  const gastosFixos = JSON.parse(localStorage.getItem('gastosFixos') || '[]');
+  
+  gastosFixos.forEach(gasto => {
+    const existe = Array.from(document.querySelectorAll('#despesa tbody tr')).some(tr => {
+      const descInput = tr.querySelector('td:first-child input');
+      return descInput && descInput.value === gasto.descricao;
+    });
+    
+    if (!existe) {
+      addRow('despesa', gasto.descricao, gasto.valor, false, true);
+    }
+  });
+}
+
+// Funções para investimentos fixados
+function marcarInvestimentoComoFixo(checkbox) {
+  const tr = checkbox.closest('tr');
+  if (!tr) return;
+  
+  const nome = tr.querySelector('td:first-child input').value;
+  const aporte = parseFloat(tr.querySelector('td:nth-child(2) input').value) || 0;
+  const meta = parseFloat(tr.querySelector('td:nth-child(3) input').value) || 0;
+  
+  if (checkbox.checked && nome) {
+    const investimentosFixos = JSON.parse(localStorage.getItem('investimentosFixos') || '[]');
+    const index = investimentosFixos.findIndex(i => i.nome === nome);
+    if (index >= 0) {
+      investimentosFixos[index].aporte = aporte;
+      investimentosFixos[index].meta = meta;
+    } else {
+      investimentosFixos.push({ nome, aporte, meta });
+    }
+    localStorage.setItem('investimentosFixos', JSON.stringify(investimentosFixos));
+    if (typeof showToast === 'function') showToast(`"${nome}" marcado como investimento fixo`, 'success');
+  } else {
+    removerInvestimentoFixo(nome);
+  }
+}
+
+function removerInvestimentoFixo(nome) {
+  const investimentosFixos = JSON.parse(localStorage.getItem('investimentosFixos') || '[]');
+  const filtrados = investimentosFixos.filter(i => i.nome !== nome);
+  localStorage.setItem('investimentosFixos', JSON.stringify(filtrados));
+}
+
+function carregarInvestimentosFixos() {
+  const investimentosFixos = JSON.parse(localStorage.getItem('investimentosFixos') || '[]');
+  
+  investimentosFixos.forEach(investimento => {
+    const existe = Array.from(document.querySelectorAll('#invest tbody tr')).some(tr => {
+      const nomeInput = tr.querySelector('td:first-child input');
+      return nomeInput && nomeInput.value === investimento.nome;
+    });
+    
+    if (!existe) {
+      addInvest(investimento.nome, investimento.aporte, investimento.meta);
+      // Marcar como fixo após adicionar
+      setTimeout(() => {
+        const rows = document.querySelectorAll('#invest tbody tr');
+        const lastRow = rows[rows.length - 1];
+        if (lastRow) {
+          const fixoCheckbox = lastRow.querySelector('.check-fixo-invest');
+          if (fixoCheckbox) fixoCheckbox.checked = true;
+        }
+      }, 100);
+    }
+  });
+}
+
+// Função para salvar saldo anterior
+function salvarSaldoAnterior() {
+  const saldoEl = document.getElementById('saldo');
+  if (saldoEl) {
+    const saldoAtual = parseFloat(saldoEl.textContent.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
+    localStorage.setItem('saldoAnterior', saldoAtual.toString());
+    if (typeof showToast === 'function') showToast('Saldo anterior salvo', 'success');
+  }
+}
+
+// Função para carregar saldo anterior
+function carregarSaldoAnterior() {
+  const saldoAnterior = parseFloat(localStorage.getItem('saldoAnterior') || '0');
+  const saldoAnteriorEl = document.getElementById('saldoAnterior');
+  if (saldoAnteriorEl) {
+    saldoAnteriorEl.textContent = formatCurrency(saldoAnterior);
+  }
+}
+
+// Exportar funções
+window.marcarComoFixo = marcarComoFixo;
+window.carregarGastosFixos = carregarGastosFixos;
+window.marcarInvestimentoComoFixo = marcarInvestimentoComoFixo;
+window.carregarInvestimentosFixos = carregarInvestimentosFixos;
+window.salvarSaldoAnterior = salvarSaldoAnterior;
+window.carregarSaldoAnterior = carregarSaldoAnterior;

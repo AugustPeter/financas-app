@@ -117,18 +117,25 @@ function loadTransactions() {
   const despesaRows = document.querySelectorAll('#despesa tbody tr');
   despesaRows.forEach(row => {
     const inputs = row.querySelectorAll('input');
-    const checkbox = row.querySelector('input[type="checkbox"]');
+    const statusSelect = row.querySelector('.status-select');
+    const checkboxFixo = row.querySelector('.check-fixo');
+    
     if (inputs.length >= 2) {
       const desc = inputs[0].value || '';
       const value = parseFloat(inputs[1].value) || 0;
-      const pago = checkbox ? checkbox.checked : false;
+      const status = statusSelect ? statusSelect.value : 'pendente';
+      const pago = status === 'pago';
+      const fixo = checkboxFixo ? checkboxFixo.checked : false;
+      
       if (desc || value > 0) {
         allTransactions.push({
           month: mesAtual,
           type: 'despesa',
           desc,
           value,
+          status,
           pago,
+          fixo,
           date: new Date().toISOString()
         });
       }
@@ -172,17 +179,18 @@ function loadTransactions() {
     const safeDesc = typeof escapeHTML === 'function' ? escapeHTML(trans.desc) : (trans.desc || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const safeMonth = typeof escapeHTML === 'function' ? escapeHTML(trans.month) : (trans.month || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     transEl.innerHTML = `
-      <div class="transaction-info">
-        <div class="transaction-name">${safeDesc || 'Sem descrição'}</div>
-        <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <span class="transaction-category">${trans.type === 'renda' ? '💰 Renda' : '💸 Despesa'}</span>
-          <span class="transaction-category">${safeMonth}</span>
-          ${trans.pago ? '<span class="transaction-category" style="color: var(--green);">✓ Pago</span>' : ''}
-        </div>
-      </div>
-      <div class="transaction-amount ${trans.type === 'renda' ? 'positive' : 'negative'}">
-        ${trans.type === 'renda' ? '+' : '-'}${formatCurrency(trans.value)}
-      </div>
+       <div class="transaction-info">
+    <div class="transaction-name">${safeDesc || 'Sem descrição'}</div>
+    <div style="display: flex; gap: 8px; margin-top: 4px;">
+      <span class="transaction-category">${trans.type === 'renda' ? ' Renda' : ' Despesa'}</span>
+      <span class="transaction-category">${safeMonth}</span>
+      ${trans.type === 'despesa' ? `<span class="transaction-category" style="color: ${trans.status === 'pago' ? 'var(--green)' : 'var(--muted)'};">${trans.status === 'pago' ? ' Pago' : ' Pendente'}</span>` : ''}
+      ${trans.fixo ? '<span class="transaction-category" style="color: #3b82f6;"> Fixo</span>' : ''}
+    </div>
+  </div>
+  <div class="transaction-amount ${trans.type === 'renda' ? 'positive' : 'negative'}">
+    ${trans.type === 'renda' ? '+' : '-'}${formatCurrency(trans.value)}
+  </div>
     `;
     transactionsList.appendChild(transEl);
   });

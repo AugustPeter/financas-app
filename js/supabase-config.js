@@ -2,8 +2,8 @@
 // ⚠️ NOTA: Em produção, estas chaves devem vir de variáveis de ambiente
 // A chave "anon" é segura para client-side, mas configure RLS no Supabase!
 
-const SUPABASE_URL = 'https://htixncglyuabopewnwpg.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aXhuY2dseXVhYm9wZXdud3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzIyMjcsImV4cCI6MjA4Mjk0ODIyN30.DuCO2Cv7j9vYBGyNMCWEtagAVrKv9uCTJoNXA1jMCa0';
+const SUPABASE_URL = 'https://mftyyfdbdbjphdjftdxe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mdHl5ZmRiZGJqcGhkamZ0ZHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzU1NzgsImV4cCI6MjA5MTcxMTU3OH0.6qh-fvKqn4agtbTLh_zho3w3F6tuaUIZcB-cyPJPVJg';
 
 // Flag para indicar se Supabase está pronto
 window.supabaseReady = false;
