@@ -638,10 +638,10 @@ async function carregarDadosDoSupabase() {
 /**
  * Adicionar linhas vazias nas tabelas
  */
-function adicionarLinhasVazias() {
+function adicionarLinhasVazias(fixo = false) {
     if (typeof window.addRow === 'function') {
         try { window.addRow('renda', '', 0); } catch(e) {}
-        try { window.addRow('despesa', '', 0, false); } catch(e) {}
+        try { window.addRow('despesa', '', 0, false, fixo); } catch(e) {}
     }
     if (typeof window.addInvest === 'function') {
         try { window.addInvest('', 0, 0); } catch(e) {}
@@ -683,11 +683,14 @@ function aplicarDadosSincrono(data) {
     if (data.despesas && data.despesas.length > 0) {
         data.despesas.forEach(item => {
             if (typeof window.addRow === 'function') {
-                window.addRow('despesa', item.descricao, item.valor, item.pago || false);
+                // Suporta tanto formato antigo quanto novo
+                const pago = item.pago !== undefined ? item.pago : (item.status === 'pago');
+                const fixo = item.fixo !== undefined ? item.fixo : false;
+                window.addRow('despesa', item.descricao, item.valor, pago, fixo);
             }
         });
     } else {
-        if (typeof window.addRow === 'function') window.addRow('despesa', '', 0, false);
+        if (typeof window.addRow === 'function') window.addRow('despesa', '', 0, false, false);
     }
     
     // Aplicar investimentos
@@ -874,19 +877,23 @@ function collectDashboardData() {
         });
     }
     
-    // 2. DESPESAS (incluindo campo 'pago')
+    // 2. DESPESAS (incluindo campo 'status' e 'fixo')
     const despesaTable = document.getElementById('despesa');
     if (despesaTable?.querySelector('tbody')) {
         despesaTable.querySelectorAll('tbody tr').forEach(row => {
             const inputs = row.querySelectorAll('input');
-            const checkbox = row.querySelector('input[type="checkbox"]');
+            const statusSelect = row.querySelector('.status-select');
+            const checkboxFixo = row.querySelector('.check-fixo'); // Campo fixo
+            
             if (inputs.length >= 2) {
                 const descricao = (inputs[0].value || '').trim();
                 const valor = parseFloat(inputs[1].value) || 0;
-                const pago = checkbox ? checkbox.checked : false;
+                const status = statusSelect ? statusSelect.value : 'pendente';
+                const pago = status === 'pago'; // Converter status para boolean
+                const fixo = checkboxFixo ? checkboxFixo.checked : false; // Campo fixo
                 
                 if (descricao || valor > 0) {
-                    data.despesas.push({ descricao, valor, pago });
+                    data.despesas.push({ descricao, valor, pago, status, fixo });
                 }
             }
         });
